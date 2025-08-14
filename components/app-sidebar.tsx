@@ -13,10 +13,12 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { GraduationCap } from 'lucide-react';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
@@ -59,6 +61,19 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Link
+              href="/training"
+              onClick={() => setOpenMobile(false)}
+              className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded-md transition-colors"
+            >
+              <GraduationCap className="h-4 w-4" />
+              <span>Тренажер Jägermeister</span>
+            </Link>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <div className="my-2 mx-2 border-t" />
         <SidebarHistory user={user} />
       </SidebarContent>
       <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
