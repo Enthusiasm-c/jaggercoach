@@ -59,7 +59,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       <SidebarContent>
         <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
           <p className="text-center px-4">
-            Say "Hello" to start a new training session
+            Say &quot;Hello&quot; to start a new training session
           </p>
         </div>
       </SidebarContent>

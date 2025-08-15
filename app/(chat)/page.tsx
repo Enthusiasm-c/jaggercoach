@@ -291,7 +291,7 @@ export default function SimpleChatPage() {
                   onClick={() => setScenarioType('product_absent')}
                 >
                   <div className="scenario-label">NO PRODUCT</div>
-                  <div className="scenario-desc">Bar doesn't carry Jägermeister</div>
+                  <div className="scenario-desc">Bar doesn&apos;t carry Jägermeister</div>
                 </button>
                 <button 
                   className={`scenario-card ${scenarioType === 'no_promo' ? 'active' : ''}`}

@@ -31,7 +31,7 @@ export const Greeting = () => {
         transition={{ delay: 0.7 }}
         className="text-sm text-zinc-400 mt-4"
       >
-        Just type "Hello" or "Hi" to start a random training scenario
+        Just type &quot;Hello&quot; or &quot;Hi&quot; to start a random training scenario
       </motion.div>
     </div>
   );
