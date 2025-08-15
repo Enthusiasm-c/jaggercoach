@@ -1,62 +1,126 @@
-<a href="https://chat.vercel.ai/">
-  <img alt="Next.js 14 and App Router-ready AI chatbot." src="app/(chat)/opengraph-image.png">
-  <h1 align="center">Chat SDK</h1>
-</a>
+# Jägermeister BA Training Simulator
 
-<p align="center">
-    Chat SDK is a free, open-source template built with Next.js and the AI SDK that helps you quickly build powerful chatbot applications.
-</p>
+**Version:** 2.0.0  
+**Last Updated:** August 15, 2025  
 
-<p align="center">
-  <a href="https://chat-sdk.dev"><strong>Read Docs</strong></a> ·
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#model-providers"><strong>Model Providers</strong></a> ·
-  <a href="#deploy-your-own"><strong>Deploy Your Own</strong></a> ·
-  <a href="#running-locally"><strong>Running locally</strong></a>
-</p>
-<br/>
+## Overview
+
+An AI-powered training simulator for Jägermeister Brand Ambassadors to practice selling High 5 standards to skeptical bar owners. Built with Next.js 15.3 and OpenAI GPT models.
 
 ## Features
 
-- [Next.js](https://nextjs.org) App Router
-  - Advanced routing for seamless navigation and performance
-  - React Server Components (RSCs) and Server Actions for server-side rendering and increased performance
-- [AI SDK](https://sdk.vercel.ai/docs)
-  - Unified API for generating text, structured objects, and tool calls with LLMs
-  - Hooks for building dynamic chat and generative user interfaces
-  - Supports xAI (default), OpenAI, Fireworks, and other model providers
-- [shadcn/ui](https://ui.shadcn.com)
-  - Styling with [Tailwind CSS](https://tailwindcss.com)
-  - Component primitives from [Radix UI](https://radix-ui.com) for accessibility and flexibility
-- Data Persistence
-  - [Neon Serverless Postgres](https://vercel.com/marketplace/neon) for saving chat history and user data
-  - [Vercel Blob](https://vercel.com/storage/blob) for efficient file storage
-- [Auth.js](https://authjs.dev)
-  - Simple and secure authentication
+- **Realistic Scenarios**: Practice with 3 core scenarios
+  - Product Not Present (convince to stock Jägermeister)
+  - No Promo (product present but not promoted)
+  - No Perfect Serve (not served at -18°C)
 
-## Model Providers
+- **Dynamic AI Conversations**: 
+  - AI plays different bar owner personas
+  - Realistic objections based on difficulty level
+  - Adaptive responses to BA's sales approach
 
-This template ships with [xAI](https://x.ai) `grok-2-1212` as the default chat model. However, with the [AI SDK](https://sdk.vercel.ai/docs), you can switch LLM providers to [OpenAI](https://openai.com), [Anthropic](https://anthropic.com), [Cohere](https://cohere.com/), and [many more](https://sdk.vercel.ai/providers/ai-sdk-providers) with just a few lines of code.
+- **Performance Tracking**:
+  - Real-time objective tracking
+  - High 5 element coverage monitoring
+  - On-demand coaching hints
 
-## Deploy Your Own
+- **Difficulty Levels**:
+  - Easy: Open-minded owners, quick agreement
+  - Medium: Balanced negotiation needed
+  - Hard: Skeptical owners requiring data and guarantees
 
-You can deploy your own version of the Next.js AI Chatbot to Vercel with one click:
+## Tech Stack
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fai-chatbot&env=AUTH_SECRET&envDescription=Learn+more+about+how+to+get+the+API+Keys+for+the+application&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fai-chatbot%2Fblob%2Fmain%2F.env.example&demo-title=AI+Chatbot&demo-description=An+Open-Source+AI+Chatbot+Template+Built+With+Next.js+and+the+AI+SDK+by+Vercel.&demo-url=https%3A%2F%2Fchat.vercel.ai&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22ai%22%2C%22productSlug%22%3A%22grok%22%2C%22integrationSlug%22%3A%22xai%22%7D%2C%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22integrationSlug%22%3A%22upstash%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D)
+- **Frontend**: Next.js 15.3.0, React 19 RC, TypeScript
+- **AI Models**: OpenAI GPT-5-mini (agent), GPT-4o-mini (hints)
+- **Styling**: Tailwind CSS with Jägermeister branding
+- **Deployment**: Vercel
+- **State Management**: React hooks, Server-Sent Events for streaming
 
-## Running locally
+## Performance Optimizations (v2.0.0)
 
-You will need to use the environment variables [defined in `.env.example`](.env.example) to run Next.js AI Chatbot. It's recommended you use [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables) for this, but a `.env` file is all that is necessary.
+- Response time improved from 20-50s to 6-17s
+- Removed judge from critical path
+- On-demand hint generation
+- Lightweight progress tracking
 
-> Note: You should not commit your `.env` file or it will expose secrets that will allow others to control access to your various AI and authentication provider accounts.
+## Getting Started
 
-1. Install Vercel CLI: `npm i -g vercel`
-2. Link local instance with Vercel and GitHub accounts (creates `.vercel` directory): `vercel link`
-3. Download your environment variables: `vercel env pull`
+### Prerequisites
+
+- Node.js 18+ 
+- pnpm 9.12.3
+- OpenAI API key
+
+### Environment Variables
+
+Create a `.env.local` file:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+### Installation
 
 ```bash
+# Install dependencies
 pnpm install
+
+# Run development server
 pnpm dev
 ```
 
-Your app template should now be running on [localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) to start training.
+
+## Usage
+
+1. Click "Configure Training" on the intro screen
+2. Select a scenario (or choose random)
+3. Choose difficulty level
+4. Start training and greet the bar owner with "Hello"
+5. Use the hint button when stuck
+6. Complete objectives to finish the scenario
+
+## Project Structure
+
+```
+/app
+  /(chat)
+    /api/chat     # Main chat endpoint
+    /page.tsx     # Training interface
+  /api
+    /agent        # Bar owner AI responses
+    /hint         # Coaching hints (on-demand)
+    /judge        # Performance evaluation (optional)
+/lib
+  /trainer-state.ts  # Training state management
+/scenarios
+  /jaeger_high5.yaml # Scenario definitions
+```
+
+## Recent Updates (August 2025)
+
+- **v2.0.0**: Major performance optimization
+  - 3x faster response times
+  - On-demand hint generation
+  - Improved conversation ending detection
+  - Fixed venue-specific consistency issues
+  - Claude-style dark UI with Jägermeister branding
+
+## Deployment
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Enthusiasm-c/jaggercoach)
+
+## License
+
+MIT
+
+## Support
+
+For issues or questions, please open an issue on [GitHub](https://github.com/Enthusiasm-c/jaggercoach/issues).
+
+---
+
+Built with ❤️ for Jägermeister Brand Ambassadors  
+© 2025 JägerCoach Training Simulator
