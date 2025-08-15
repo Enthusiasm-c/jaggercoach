@@ -114,8 +114,8 @@ After 2-3 exchanges with good solutions, agree to try.`;
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
   // Check if we've already agreed based on objectives
   function checkIfAgreed(state: TrainerState): boolean {
-    return state.objectives.trialOrder || state.objectives.promoAgreed || 
-           state.objectives.staffTraining || state.objectives.tapMachine;
+    return !!(state.objectives.trialOrder || state.objectives.promoAgreed || 
+           state.objectives.staffTraining || state.objectives.tapMachine);
   }
   
   // Get venue-specific details
