@@ -88,7 +88,9 @@ export default function SimpleChatPage() {
             role: 'user',
             parts: [{ type: 'text', text: userMessage }]
           },
-          difficulty
+          difficulty,
+          trainingState,
+          scenarioType
         })
       });
 
@@ -227,12 +229,29 @@ export default function SimpleChatPage() {
           --danger: #b91c1c;
         }
         * { box-sizing: border-box; }
-        html, body { height: 100%; }
+        html, body { 
+          height: 100%; 
+          /* Force light mode colors */
+          background: #FFF7EB !important;
+          color: #0B3B2E !important;
+        }
         body { 
           margin: 0; 
           font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
-          background: var(--bg); 
-          color: var(--ink); 
+          background: var(--bg) !important; 
+          color: var(--ink) !important; 
+        }
+        /* Override dark mode */
+        @media (prefers-color-scheme: dark) {
+          :root {
+            --bg: #FFF7EB;
+            --ink: #0B3B2E;
+            --card: #FFFFFF;
+          }
+          body {
+            background: #FFF7EB !important;
+            color: #0B3B2E !important;
+          }
         }
       `}</style>
 

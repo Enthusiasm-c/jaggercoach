@@ -43,18 +43,26 @@ function getScenario(scenarioId: string) {
 
 export async function POST(request: Request) {
   try {
-    const { id, message, difficulty = 'medium' }: { id: string; message: ChatMessage; difficulty?: string } = await request.json();
+    const { id, message, difficulty = 'medium', trainingState: clientState, scenarioType }: { 
+      id: string; 
+      message: ChatMessage; 
+      difficulty?: string;
+      trainingState?: TrainerState;
+      scenarioType?: string;
+    } = await request.json();
 
-    // Check if this is a greeting to start training
-    let trainingState = trainingStates.get(id);
+    // Use client state if provided, otherwise check memory (for backwards compatibility)
+    let trainingState = clientState || trainingStates.get(id);
     let isTrainingMode = false;
     let scenarioIntro = '';
     
     if (!trainingState && message.role === 'user' && message.parts[0]?.type === 'text') {
       const userText = message.parts[0].text;
       if (isGreeting(userText)) {
-        // Initialize random training scenario
-        const scenario = getRandomScenario();
+        // Initialize training scenario (use selected type or random)
+        const scenario = scenarioType && scenarioType !== 'random' 
+          ? getScenario(scenarioType) 
+          : getRandomScenario();
         trainingState = createInitialState(scenario.id, scenario.must_cover_high5);
         trainingStates.set(id, trainingState);
         isTrainingMode = true;
