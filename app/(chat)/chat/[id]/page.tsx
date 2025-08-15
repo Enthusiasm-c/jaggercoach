@@ -1,74 +1,40 @@
 import { cookies } from 'next/headers';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
-import { auth } from '@/app/(auth)/auth';
 import { Chat } from '@/components/chat';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
-import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
-import { convertToUIMessages } from '@/lib/utils';
+import { DataStreamHandler } from '@/components/data-stream-handler';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const { id } = params;
-  const chat = await getChatById({ id });
 
-  if (!chat) {
-    notFound();
-  }
-
-  const session = await auth();
-
-  if (!session) {
-    redirect('/api/auth/guest');
-  }
-
-  if (chat.visibility === 'private') {
-    if (!session.user) {
-      return notFound();
-    }
-
-    if (session.user.id !== chat.userId) {
-      return notFound();
-    }
-  }
-
-  const messagesFromDb = await getMessagesByChatId({
-    id,
-  });
-
-  const uiMessages = convertToUIMessages(messagesFromDb);
+  // MVP: Create mock session and chat data
+  const session = {
+    user: {
+      id: 'mvp-user-' + Date.now(),
+      email: 'mvp@test.com',
+      name: 'MVP User',
+      type: 'regular' as const
+    },
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  };
 
   const cookieStore = await cookies();
-  const chatModelFromCookie = cookieStore.get('chat-model');
-
-  if (!chatModelFromCookie) {
-    return (
-      <>
-        <Chat
-          id={chat.id}
-          initialMessages={uiMessages}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialVisibilityType={chat.visibility}
-          isReadonly={session?.user?.id !== chat.userId}
-          session={session}
-          autoResume={true}
-        />
-        <DataStreamHandler />
-      </>
-    );
-  }
+  const modelIdFromCookie = cookieStore.get('chat-model');
+  const selectedModelId = modelIdFromCookie?.value || DEFAULT_CHAT_MODEL;
 
   return (
     <>
       <Chat
-        id={chat.id}
-        initialMessages={uiMessages}
-        initialChatModel={chatModelFromCookie.value}
-        initialVisibilityType={chat.visibility}
-        isReadonly={session?.user?.id !== chat.userId}
-        session={session}
-        autoResume={true}
+        key={id}
+        id={id}
+        initialMessages={[]}
+        initialChatModel={selectedModelId}
+        initialVisibilityType="private"
+        isReadonly={false}
+        session={session as any}
+        autoResume={false}
       />
       <DataStreamHandler />
     </>

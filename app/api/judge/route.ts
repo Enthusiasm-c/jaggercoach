@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import yaml from 'js-yaml';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 import fs from 'fs';
 import path from 'path';
-import { xai } from '@ai-sdk/xai';
-import { generateText } from 'ai';
+import yaml from 'js-yaml';
 import { TrainerState } from '@/lib/trainer-state';
-
-export const runtime = "nodejs";
 
 // Load scenarios
 const scenariosPath = path.join(process.cwd(), 'scenarios', 'jaeger_high5.yaml');
@@ -17,48 +15,72 @@ function getScenario(scenarioId: string) {
   return scenariosData.scenarios.find((s: any) => s.id === scenarioId);
 }
 
-function judgePrompt(sc: any, state: TrainerState, lastBA: string) {
-  return `Ты — строгий тренер по продажам для бренд-амбасадоров Jägermeister.
-Оцени последний ход BA по рубрике (per_turn/final), High 5 и этике.
+function judgePrompt(sc: any, state: TrainerState, lastBA: string, lastOwnerResponse?: string) {
+  return `You are a supportive, practical sales coach for Jägermeister BAs.
+Your job: evaluate the BA's last response and provide a SPECIFIC, CONTEXTUAL hint for their NEXT response.
 
-Рубрика (per_turn): ${JSON.stringify(sc.rubric.per_turn)}
-Финальные критерии: ${JSON.stringify(sc.rubric.final)}
-Must-cover High5: ${JSON.stringify(sc.must_cover_high5 || [])}
-Глобальные правила: минимум два возражения до согласия.
+SCENARIO CONTEXT:
+• Title: ${sc.title}
+• Bar Owner: ${sc.persona}
+• Main Challenge: ${sc.primary_objection}
+• Turn Number: ${state.turn}
 
-State: ${JSON.stringify(state)}
-Ход BA: ${lastBA}
+LAST EXCHANGE:
+• BA said: "${lastBA}"
+• Owner's likely concerns: ${sc.secondary_objection_pool ? JSON.stringify(sc.secondary_objection_pool) : 'unknown'}
 
-Верни строго JSON:
+Scoring guidelines:
+• discovery: 0–3 (quality of venue questions about needs, challenges, current setup)
+• objection_handling: 0–3 (how well objections were addressed with practical solutions)
+• brand_balance: 0–2 (sales + brand image balance, not just discounts)
+• clarity_brevity: 0–2 (clear, concise speech without rambling)
+
+High 5 Elements to Track:
+• Ice Cold Serve (–18°C, Tap Machine/Freezer, clean service)
+• Menu + Price (visibility in menu, correct price)
+• Visibility (POSM, design fit)
+• Promo (guest-facing: group serve, 2+1, digital/table tent)
+• Staff (training, engagement)
+
+Must-cover High5 for this scenario: ${JSON.stringify(sc.must_cover_high5 || [])}
+
+Current progress:
+• Objectives achieved: ${JSON.stringify(state.objectives)}
+• High5 covered: ${state.coveredHigh5.join(', ') || 'none yet'}
+
+Return strictly JSON format only:
 {
-  "scores": { 
-    "discovery": 0-3, 
-    "objection_handling": 0-3, 
-    "brand_balance": 0-2, 
-    "clarity_brevity": 0-2 
+  "scores": {
+    "discovery": 0,
+    "objection_handling": 0,
+    "brand_balance": 0,
+    "clarity_brevity": 0
   },
-  "commentary": "2-4 конкретных предложения как улучшить следующую реплику",
-  "closed_high5_delta": ["Promo"],
-  "uncovered_high5": ["Ice Cold Serve", "..."],
-  "objective_delta": { 
-    "trialOrder": true|false, 
-    "promoAgreed": true|false, 
-    "staffTraining": true|false, 
-    "tapMachine": true|false 
+  "commentary": "Positive feedback focusing on sales technique, not just High5 checklist",
+  "closed_high5_delta": ["Elements covered this turn"],
+  "uncovered_high5": ["Elements still to cover"],
+  "objective_delta": {
+    "trialOrder": false,
+    "promoAgreed": false,
+    "staffTraining": false,
+    "tapMachine": false
   },
   "objections_count": 0,
-  "risk_flags": ["discount_only_focus","irresponsible_serving","unrealistic_promise"],
-  "action_drill": "одно микро-упражнение на следующий ход",
-  "final_ready": true|false,
-  "final_outcome": "кратко, если final_ready=true"
+  "risk_flags": ["discount_only_focus", "irresponsible_serving", "unrealistic_promise"],
+  "action_drill": "SPECIFIC hint for the NEXT response based on where the conversation is NOW (e.g., 'Ask about their peak hours and current shot prices' or 'Offer free trial with money-back guarantee' or 'Mention the 50% sales increase data')",
+  "final_ready": false,
+  "final_outcome": "Brief summary if scenario complete"
 }
 
-Отмечай risk_flags, если BA уходит в скидки, обещает недостижимое или нарушает ответственность.`;
+Flag risk_flags only if BA:
+- Focuses only on discounts without brand building
+- Promises unrealistic results
+- Violates responsible serving principles`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { scenarioId, state, lastBA } = await req.json();
+    const { scenarioId, state, lastBA, lastOwnerResponse } = await req.json();
     
     const scenario = getScenario(scenarioId);
     if (!scenario) {
@@ -66,64 +88,45 @@ export async function POST(req: NextRequest) {
     }
 
     const { text } = await generateText({
-      model: xai('grok-2-1212'),
-      system: 'You are a strict sales trainer evaluating BA performance. Return ONLY valid JSON.',
-      prompt: judgePrompt(scenariosData, state, lastBA),
+      model: openai('gpt-5-mini'),
+      system: judgePrompt(scenario, state, lastBA, lastOwnerResponse),
+      prompt: `Evaluate the BA's response and provide a CONTEXTUAL hint.
+The bar owner just responded with: "${lastOwnerResponse || 'starting conversation'}"
+What should the BA say NEXT to address this specific response?
+Return JSON only.`,
       temperature: 0.3,
-      maxTokens: 800,
+      maxTokens: 1000,
     });
 
-    // Parse JSON response
-    let evaluation;
+    // Parse the response as JSON
     try {
-      // Clean the response - remove any non-JSON content
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        evaluation = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
-      }
+      const evaluation = JSON.parse(text);
+      return NextResponse.json(evaluation);
     } catch (parseError) {
       console.error('Failed to parse judge response:', text);
-      // Return a default evaluation
-      evaluation = {
+      // Return a default evaluation if parsing fails
+      return NextResponse.json({
         scores: {
           discovery: 1,
           objection_handling: 1,
           brand_balance: 1,
           clarity_brevity: 1
         },
-        commentary: "Ошибка парсинга ответа. Попробуйте еще раз.",
+        commentary: "Good effort! Keep focusing on addressing the owner's specific concerns.",
         closed_high5_delta: [],
-        uncovered_high5: scenario.must_cover_high5,
+        uncovered_high5: scenario.must_cover_high5 || [],
         objective_delta: {},
         objections_count: state.objectionsRaised.length,
         risk_flags: [],
-        action_drill: "Продолжайте работу с возражениями",
+        action_drill: "Try asking more discovery questions about the venue's needs.",
         final_ready: false,
         final_outcome: ""
-      };
+      });
     }
-
-    // Ensure all required fields exist
-    evaluation = {
-      scores: evaluation.scores || { discovery: 0, objection_handling: 0, brand_balance: 0, clarity_brevity: 0 },
-      commentary: evaluation.commentary || "",
-      closed_high5_delta: evaluation.closed_high5_delta || [],
-      uncovered_high5: evaluation.uncovered_high5 || [],
-      objective_delta: evaluation.objective_delta || {},
-      objections_count: evaluation.objections_count || state.objectionsRaised.length,
-      risk_flags: evaluation.risk_flags || [],
-      action_drill: evaluation.action_drill || "",
-      final_ready: evaluation.final_ready || false,
-      final_outcome: evaluation.final_outcome || ""
-    };
-
-    return NextResponse.json(evaluation);
   } catch (error) {
     console.error('Judge error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate judge evaluation' },
+      { error: 'Failed to evaluate response' },
       { status: 500 }
     );
   }

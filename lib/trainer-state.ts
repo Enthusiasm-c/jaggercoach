@@ -11,6 +11,11 @@ export type TrainerState = {
   };
   mustCoverHigh5: string[];            // из сценария
   done: boolean;
+  conversationTopics?: string[];       // Track what topics have been discussed
+  lastExchange?: {                     // Store last exchange for hint generation
+    baMessage: string;
+    ownerResponse: string;
+  };
 };
 
 export function createInitialState(scenarioId: TrainerState['scenarioId'], mustCoverHigh5: string[]): TrainerState {
@@ -21,7 +26,8 @@ export function createInitialState(scenarioId: TrainerState['scenarioId'], mustC
     coveredHigh5: [],
     objectives: {},
     mustCoverHigh5,
-    done: false
+    done: false,
+    conversationTopics: []
   };
 }
 

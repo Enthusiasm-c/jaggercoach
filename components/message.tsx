@@ -34,7 +34,7 @@ const PurePreviewMessage = ({
   requiresScrollPadding,
 }: {
   chatId: string;
-  message: ChatMessage;
+  message: ChatMessage & { evaluation?: any };
   vote: Vote | undefined;
   isLoading: boolean;
   setMessages: UseChatHelpers<ChatMessage>['setMessages'];
@@ -317,6 +317,21 @@ const PurePreviewMessage = ({
                 vote={vote}
                 isLoading={isLoading}
               />
+            )}
+            
+            {message.evaluation && message.role === 'user' && (
+              <div className="mt-2 p-3 bg-purple-50 rounded-lg text-sm">
+                <div className="font-semibold mb-1">Coach Evaluation:</div>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  <div>Discovery: {message.evaluation.scores?.discovery || 0}/3</div>
+                  <div>Objection: {message.evaluation.scores?.objection_handling || 0}/3</div>
+                  <div>Balance: {message.evaluation.scores?.brand_balance || 0}/2</div>
+                  <div>Clarity: {message.evaluation.scores?.clarity_brevity || 0}/2</div>
+                </div>
+                {message.evaluation.commentary && (
+                  <div className="text-gray-600 mb-1">{message.evaluation.commentary}</div>
+                )}
+              </div>
             )}
           </div>
         </div>

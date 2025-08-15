@@ -3,10 +3,9 @@
 import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useState } from 'react';
-import useSWR, { useSWRConfig } from 'swr';
+import { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
-import type { Vote } from '@/lib/db/schema';
-import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
+import { fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
@@ -22,6 +21,9 @@ import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 import type { Attachment, ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
+import { TrainingSidebar } from './training-sidebar';
+import type { TrainerState } from '@/lib/trainer-state';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export function Chat({
   id,
@@ -46,9 +48,11 @@ export function Chat({
   });
 
   const { mutate } = useSWRConfig();
-  const { setDataStream } = useDataStream();
+  const { dataStream, setDataStream } = useDataStream();
 
   const [input, setInput] = useState<string>('');
+  const [trainingState, setTrainingState] = useState<TrainerState | null>(null);
+  const [evaluations, setEvaluations] = useState<Record<string, any>>({});
 
   const {
     messages,
@@ -80,6 +84,62 @@ export function Chat({
     }),
     onData: (dataPart) => {
       setDataStream((ds) => (ds ? [...ds, dataPart] : []));
+      
+      // Handle training-specific data
+      if (dataPart.type === 'data-custom' && dataPart.data) {
+        const customData = dataPart.data;
+        
+        if (customData.type === 'trainingState') {
+          setTrainingState(customData.data);
+        } else if (customData.type === 'evaluation') {
+          // Store evaluation for the last message
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage) {
+            setEvaluations(prev => ({
+              ...prev,
+              [lastMessage.id]: customData.data
+            }));
+          }
+          
+          // Show evaluation feedback as toasts
+          const evalData = customData.data;
+          if (evalData.risk_flags?.length > 0) {
+            evalData.risk_flags.forEach((flag: string) => {
+              if (flag === 'irresponsible_serving') {
+                toast({
+                  type: 'error',
+                  description: 'Warning: Violation of responsible serving principles!',
+                  icon: <AlertCircle className="h-4 w-4" />
+                });
+              } else if (flag === 'discount_only_focus') {
+                toast({
+                  type: 'warning',
+                  description: 'Too much focus on discounts. Balance sales and brand image!'
+                });
+              } else if (flag === 'unrealistic_promise') {
+                toast({
+                  type: 'warning',
+                  description: 'Unrealistic promises. Be honest with the client!'
+                });
+              }
+            });
+          }
+          
+          // Show action drill as info toast
+          if (evalData.action_drill) {
+            toast({
+              type: 'info',
+              description: `💡 ${evalData.action_drill}`
+            });
+          }
+        } else if (customData.type === 'trainingComplete') {
+          toast({
+            type: 'success',
+            description: customData.data.message,
+            icon: <CheckCircle2 className="h-4 w-4" />
+          });
+        }
+      }
     },
     onFinish: () => {
       mutate(unstable_serialize(getChatHistoryPaginationKey));
@@ -111,10 +171,8 @@ export function Chat({
     }
   }, [query, sendMessage, hasAppendedQuery, id]);
 
-  const { data: votes } = useSWR<Array<Vote>>(
-    messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
-    fetcher,
-  );
+  // MVP: Voting disabled - no authentication
+  const votes = undefined;
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
@@ -128,43 +186,50 @@ export function Chat({
 
   return (
     <>
-      <div className="flex flex-col min-w-0 h-dvh bg-background">
-        <ChatHeader
-          chatId={id}
-          selectedModelId={initialChatModel}
-          selectedVisibilityType={initialVisibilityType}
-          isReadonly={isReadonly}
-          session={session}
-        />
+      <div className="flex h-dvh bg-background">
+        <div className="flex flex-col min-w-0 flex-1">
+          <ChatHeader
+            chatId={id}
+            selectedModelId={initialChatModel}
+            selectedVisibilityType={initialVisibilityType}
+            isReadonly={isReadonly}
+            session={session}
+          />
 
-        <Messages
-          chatId={id}
-          status={status}
-          votes={votes}
-          messages={messages}
-          setMessages={setMessages}
-          regenerate={regenerate}
-          isReadonly={isReadonly}
-          isArtifactVisible={isArtifactVisible}
-        />
+          <Messages
+            chatId={id}
+            status={status}
+            votes={votes}
+            messages={messages.map(msg => ({
+              ...msg,
+              evaluation: evaluations[msg.id]
+            }))}
+            setMessages={setMessages}
+            regenerate={regenerate}
+            isReadonly={isReadonly}
+            isArtifactVisible={isArtifactVisible}
+          />
 
-        <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
-          {!isReadonly && (
-            <MultimodalInput
-              chatId={id}
-              input={input}
-              setInput={setInput}
-              status={status}
-              stop={stop}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              selectedVisibilityType={visibilityType}
-            />
-          )}
-        </form>
+          <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+            {!isReadonly && (
+              <MultimodalInput
+                chatId={id}
+                input={input}
+                setInput={setInput}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                sendMessage={sendMessage}
+                selectedVisibilityType={visibilityType}
+              />
+            )}
+          </form>
+        </div>
+        
+        {trainingState && <TrainingSidebar state={trainingState} />}
       </div>
 
       <Artifact

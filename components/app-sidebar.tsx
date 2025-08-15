@@ -4,8 +4,6 @@ import type { User } from 'next-auth';
 import { useRouter } from 'next/navigation';
 
 import { PlusIcon } from '@/components/icons';
-import { SidebarHistory } from '@/components/sidebar-history';
-import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import { Button } from '@/components/ui/button';
 import {
   Sidebar,
@@ -13,12 +11,10 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { GraduationCap } from 'lucide-react';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
@@ -37,7 +33,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               className="flex flex-row gap-3 items-center"
             >
               <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                Chatbot
+                Jägermeister Training
               </span>
             </Link>
             <Tooltip>
@@ -55,28 +51,23 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   <PlusIcon />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent align="end">New Chat</TooltipContent>
+              <TooltipContent align="end">New Training</TooltipContent>
             </Tooltip>
           </div>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <Link
-              href="/training"
-              onClick={() => setOpenMobile(false)}
-              className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded-md transition-colors"
-            >
-              <GraduationCap className="h-4 w-4" />
-              <span>Тренажер Jägermeister</span>
-            </Link>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <div className="my-2 mx-2 border-t" />
-        <SidebarHistory user={user} />
+        <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+          <p className="text-center px-4">
+            Say "Hello" to start a new training session
+          </p>
+        </div>
       </SidebarContent>
-      <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
+      <SidebarFooter>
+        <div className="text-xs text-muted-foreground text-center py-2">
+          High 5 Sales Training Simulator
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
