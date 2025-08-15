@@ -18,6 +18,10 @@ interface TrainingState {
     tapMachine?: boolean;
   };
   done: boolean;
+  lastExchange?: {
+    baMessage: string;
+    ownerResponse: string;
+  };
 }
 
 export default function SimpleChatPage() {
