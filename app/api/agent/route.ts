@@ -230,7 +230,6 @@ export async function POST(req: NextRequest) {
       system: agentSystem(scenario, difficulty),
       prompt: userToAgent(scenario, state, lastTurn, difficulty, conversationHistory),
       temperature: 0.7,
-      maxTokens: 500,
     });
 
     // Determine which objection was raised

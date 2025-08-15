@@ -23,7 +23,6 @@ import type { Attachment, ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { TrainingSidebar } from './training-sidebar';
 import type { TrainerState } from '@/lib/trainer-state';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export function Chat({
   id,
@@ -86,8 +85,8 @@ export function Chat({
       setDataStream((ds) => (ds ? [...ds, dataPart] : []));
       
       // Handle training-specific data
-      if (dataPart.type === 'data-custom' && dataPart.data) {
-        const customData = dataPart.data;
+      if ((dataPart as any).type === 'data-custom' && (dataPart as any).data) {
+        const customData = (dataPart as any).data;
         
         if (customData.type === 'trainingState') {
           setTrainingState(customData.data);
@@ -108,35 +107,33 @@ export function Chat({
               if (flag === 'irresponsible_serving') {
                 toast({
                   type: 'error',
-                  description: 'Warning: Violation of responsible serving principles!',
-                  icon: <AlertCircle className="h-4 w-4" />
+                  description: 'Warning: Violation of responsible serving principles!'
                 });
               } else if (flag === 'discount_only_focus') {
                 toast({
-                  type: 'warning',
+                  type: 'error',
                   description: 'Too much focus on discounts. Balance sales and brand image!'
                 });
               } else if (flag === 'unrealistic_promise') {
                 toast({
-                  type: 'warning',
+                  type: 'error',
                   description: 'Unrealistic promises. Be honest with the client!'
                 });
               }
             });
           }
           
-          // Show action drill as info toast
+          // Show action drill as success toast
           if (evalData.action_drill) {
             toast({
-              type: 'info',
+              type: 'success',
               description: `💡 ${evalData.action_drill}`
             });
           }
         } else if (customData.type === 'trainingComplete') {
           toast({
             type: 'success',
-            description: customData.data.message,
-            icon: <CheckCircle2 className="h-4 w-4" />
+            description: customData.data.message
           });
         }
       }

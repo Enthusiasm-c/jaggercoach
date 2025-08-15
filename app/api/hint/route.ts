@@ -58,7 +58,6 @@ export async function POST(req: NextRequest) {
       system: hintPrompt(scenario, lastBA, lastOwner, state),
       prompt: 'Generate a specific hint for the next response.',
       temperature: 0.3,
-      maxTokens: 150,
     });
 
     return NextResponse.json({ hint: text.trim() });

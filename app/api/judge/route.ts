@@ -95,7 +95,6 @@ The bar owner just responded with: "${lastOwnerResponse || 'starting conversatio
 What should the BA say NEXT to address this specific response?
 Return JSON only.`,
       temperature: 0.3,
-      maxTokens: 1000,
     });
 
     // Parse the response as JSON
