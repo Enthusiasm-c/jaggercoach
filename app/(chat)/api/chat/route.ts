@@ -6,6 +6,7 @@ import {
 import { type RequestHints } from '@/lib/ai/prompts';
 import { generateUUID } from '@/lib/utils';
 import { TrainerState, createInitialState, appendUnique, updateObjectives, isScenarioComplete } from '@/lib/trainer-state';
+import { getAgentResponse } from '@/app/api/agent/route';
 import yaml from 'js-yaml';
 import fs from 'fs';
 import path from 'path';
@@ -55,6 +56,13 @@ export async function POST(request: Request) {
     let trainingState = clientState || trainingStates.get(id);
     let isTrainingMode = false;
     let scenarioIntro = '';
+    
+    console.log('Incoming request:', {
+      hasClientState: !!clientState,
+      trainingStateTurn: trainingState?.turn,
+      messageText: message.parts[0]?.text,
+      scenarioType
+    });
     
     if (!trainingState && message.role === 'user' && message.parts[0]?.type === 'text') {
       const userText = message.parts[0].text;
@@ -164,12 +172,16 @@ ${situationDesc}
 
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
+        console.log('Stream execute:', { isTrainingMode, hasTrainingState: !!trainingState, turn: trainingState?.turn });
+        
         if (isTrainingMode && trainingState) {
           // Training mode: Use judge and agent system
           const userText = message.parts.find(p => p.type === 'text')?.text || '';
+          console.log('Training mode active, user text:', userText, 'turn:', trainingState.turn);
           
           // If this is the first message (greeting), just return the scenario intro
           if (scenarioIntro && trainingState.turn === 0) {
+            console.log('Returning scenario intro');
             dataStream.write({
               type: 'data-appendMessage',
               data: JSON.stringify({
@@ -180,6 +192,15 @@ ${situationDesc}
             });
             trainingState.turn = 1;
             trainingStates.set(id, trainingState);
+            
+            // Send training state update to client
+            dataStream.write({
+              type: 'data-custom',
+              data: {
+                type: 'trainingState',
+                data: trainingState
+              }
+            });
             return;
           }
           
@@ -201,20 +222,22 @@ ${situationDesc}
           }
 
           // Get agent response ONLY - no judge for speed
-          const agentStart = Date.now();
-          const agentResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/agent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              scenarioId: trainingState.scenarioId,
-              state: trainingState,
-              lastTurn: userText,
-              difficulty,
-              conversationHistory: trainingState.conversationTopics || []
-            })
+          console.log('Calling agent with state:', { 
+            scenarioId: trainingState.scenarioId, 
+            turn: trainingState.turn, 
+            userText 
           });
+          const agentStart = Date.now();
           
-          const agentData = await agentResponse.json();
+          // Call agent function directly instead of via HTTP
+          const agentData = await getAgentResponse(
+            trainingState.scenarioId,
+            trainingState,
+            userText,
+            difficulty,
+            trainingState.conversationTopics || []
+          );
+          
           const agentTime = Date.now() - agentStart;
           console.log(`Agent response time: ${agentTime}ms`);
           

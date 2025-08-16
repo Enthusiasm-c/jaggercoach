@@ -216,38 +216,44 @@ ${getResponseInstructions(state.objectionsRaised.length, difficulty)}`;
   }
 }
 
+// Export the main logic as a reusable function
+export async function getAgentResponse(
+  scenarioId: string, 
+  state: TrainerState, 
+  lastTurn: string, 
+  difficulty: string = 'medium', 
+  conversationHistory: string[] = []
+) {
+  const scenario = getScenario(scenarioId);
+  if (!scenario) {
+    throw new Error('Scenario not found');
+  }
+
+  const { text } = await generateText({
+    model: openai('gpt-5-mini'), // Latest mini model
+    system: agentSystem(scenario, difficulty),
+    prompt: userToAgent(scenario, state, lastTurn, difficulty, conversationHistory),
+    temperature: 0.7,
+  });
+  
+  // Determine which objection was raised
+  let suggestedObjectionId = null;
+  if (state.objectionsRaised.length === 0) {
+    suggestedObjectionId = 'primary';
+  } else if (state.objectionsRaised.length === 1) {
+    suggestedObjectionId = scenario.secondary_objection_pool?.[0] || null;
+  }
+  
+  return { reply: text, suggestedObjectionId };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { scenarioId, state, lastTurn, difficulty = 'medium', conversationHistory = [] } = await req.json();
     
-    const scenario = getScenario(scenarioId);
-    if (!scenario) {
-      return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
-    }
-
-    const { text } = await generateText({
-      model: openai('gpt-5-mini'), // Latest mini model
-      system: agentSystem(scenario, difficulty),
-      prompt: userToAgent(scenario, state, lastTurn, difficulty, conversationHistory),
-      temperature: 0.7,
-    });
-
-    // Determine which objection was raised
-    let suggestedObjectionId = null;
-    if (state.objectionsRaised.length === 0) {
-      suggestedObjectionId = 'primary';
-    } else if (state.objectionsRaised.length === 1) {
-      suggestedObjectionId = 'secondary_1';
-    }
-
-    return NextResponse.json({
-      reply: text,
-      suggestedObjectionId,
-      scenarioContext: {
-        title: scenario.title,
-        persona: scenario.persona
-      }
-    });
+    const result = await getAgentResponse(scenarioId, state, lastTurn, difficulty, conversationHistory);
+    
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Agent error:', error);
     return NextResponse.json(
