@@ -246,6 +246,8 @@ ${situationDesc}
           const agentReplyLower = agentData.reply.toLowerCase();
           if (agentReplyLower.includes("let's try") || agentReplyLower.includes("deal") || 
               agentReplyLower.includes("let's do") || agentReplyLower.includes("i'm in") ||
+              agentReplyLower.includes("let's run a trial") || agentReplyLower.includes("we're in for") ||
+              agentReplyLower.includes("give it a go") || agentReplyLower.includes("book it") ||
               agentReplyLower.includes("tomorrow") || agentReplyLower.includes("perfect")) {
             if (trainingState.scenarioId === 'product_absent') {
               trainingState.objectives.trialOrder = true;
@@ -304,7 +306,9 @@ ${situationDesc}
             'let\'s do the trial', 'perfect, let\'s', 'sounds good, let\'s',
             'alright, let\'s do', 'okay, we\'ll try', 'perfect — tomorrow',
             'perfect — let\'s do it', 'alright — i\'m in', 'perfect! tomorrow',
-            'see you then', 'we\'ll see you', 'tomorrow at', 'tomorrow works'
+            'see you then', 'we\'ll see you', 'tomorrow at', 'tomorrow works',
+            'i\'m in', 'let\'s run a trial', 'we\'re in for', 'great — thanks',
+            'confirmed', 'book it', 'schedule the setup'
           ];
           
           const concernPhrases = [
@@ -320,8 +324,14 @@ ${situationDesc}
             replyLower.includes(phrase)
           );
           
-          // Only end if there's clear agreement WITHOUT remaining concerns
-          const isFullAgreement = hasAgreement && !hasConcerns;
+          // Check if BA is confirming after agreement
+          const baConfirmationWords = ['done', 'confirmed', 'great', 'perfect', 'thanks', 'see you'];
+          const isBAConfirming = userText.toLowerCase().split(' ').length <= 3 && 
+                                  baConfirmationWords.some(word => userText.toLowerCase().includes(word));
+          
+          // Only end if there's clear agreement WITHOUT remaining concerns OR BA confirms after agreement
+          const isFullAgreement = (hasAgreement && !hasConcerns) || 
+                                  (isBAConfirming && state.objectives.tapMachine);
           
           if (trainingState.done || isFullAgreement) {
             // Mark as complete
