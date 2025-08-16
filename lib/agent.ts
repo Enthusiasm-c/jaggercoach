@@ -58,14 +58,16 @@ CRITICAL RESPONSE RULES:
 2. Keep responses SHORT and CONVERSATIONAL (2-4 sentences max)
 3. Answer the specific question asked - don't info-dump everything at once
 4. Be natural - this is a real conversation, not a presentation
-5. Based on difficulty (${difficulty}):
-   ${difficulty === 'easy' ? '- Be somewhat open to suggestions\n   - Show interest relatively quickly' : ''}
-   ${difficulty === 'medium' ? '- Be balanced - interested but cautious\n   - Ask follow-up questions' : ''}
-   ${difficulty === 'hard' ? '- Be very skeptical\n   - Demand specifics one at a time' : ''}
-6. Let the conversation flow naturally over multiple turns
-7. If convinced on all major points, agree to try/implement
+5. NEVER repeat concerns that have been addressed - acknowledge when BA answers your questions
+6. Track what's been discussed and move the conversation FORWARD
+7. Based on difficulty (${difficulty}):
+   ${difficulty === 'easy' ? '- Be open to suggestions\n   - Agree after 1-2 concerns addressed' : ''}
+   ${difficulty === 'medium' ? '- Be balanced but reasonable\n   - Agree after 2-3 concerns addressed' : ''}
+   ${difficulty === 'hard' ? '- Be skeptical but fair\n   - Agree after 3-4 concerns addressed' : ''}
+8. When BA addresses your concerns adequately, ACKNOWLEDGE it and move on or agree
+9. If BA has addressed all major concerns, say YES to the trial
 
-IMPORTANT: Keep your responses brief and natural. Real people don't give long speeches in conversations.`;
+IMPORTANT: Real conversations progress. Don't loop back to answered questions.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
@@ -101,22 +103,47 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
     responseGuidance = 'Be very skeptical. Demand specifics, data, guarantees. Don\'t agree easily.';
   }
 
+  // Track what BA has addressed
+  const baAddressedPoints = [];
+  const lastTurnLower = lastTurn.toLowerCase();
+  
+  if (lastTurnLower.includes('free') || lastTurnLower.includes('no cost')) {
+    baAddressedPoints.push('cost/pricing concerns');
+  }
+  if (lastTurnLower.includes('training') || lastTurnLower.includes('session')) {
+    baAddressedPoints.push('staff training');
+  }
+  if (lastTurnLower.includes('take back') || lastTurnLower.includes('return')) {
+    baAddressedPoints.push('return policy');
+  }
+  if (lastTurnLower.includes('no minimum') || lastTurnLower.includes('one bottle')) {
+    baAddressedPoints.push('minimum commitment');
+  }
+  if (lastTurnLower.includes('custom') || lastTurnLower.includes('your team')) {
+    baAddressedPoints.push('customization for venue');
+  }
+
   return `The BA (Brand Ambassador) just said: "${lastTurn}"
 
 Context:
 - Turn ${state.turn} of conversation
 - Venue: ${venue}
 - Topics discussed: ${discussedTopics}
+- BA has addressed: ${baAddressedPoints.join(', ') || 'nothing specific yet'}
 - Previous objections raised: ${state.objectionsRaised.join(', ') || 'none yet'}
 - Agreements so far: ${JSON.stringify(state.objectives)}
 
-${isNearingConclusion ? 'The conversation is progressing well. If the BA addresses your remaining concerns, you can agree to move forward.' : ''}
+${isNearingConclusion ? 'The BA has addressed your concerns. Time to make a decision.' : ''}
+${state.turn > 8 ? 'IMPORTANT: This conversation has gone on long enough. If main concerns are addressed, agree to the trial.' : ''}
 
 Response guidance (${difficulty} mode):
 ${responseGuidance}
 
-CRITICAL: Respond with 2-4 sentences MAXIMUM. Be natural and conversational as ${sc.persona}.
-Answer ONLY what was asked - don't provide extra information unless specifically requested.
+CRITICAL RULES:
+1. Respond with 2-4 sentences MAXIMUM
+2. If BA addressed your concern, ACKNOWLEDGE it and move forward
+3. Don't repeat questions about things BA already covered
+4. ${state.turn > 6 ? 'Consider agreeing if main concerns are addressed' : 'Be conversational'}
 ${state.turn === 1 ? 'This is your first response to their question.' : ''}`;
 }
 
