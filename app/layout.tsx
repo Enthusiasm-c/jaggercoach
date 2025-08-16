@@ -4,12 +4,12 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
-import { SessionProvider } from 'next-auth/react';
+// import { SessionProvider } from 'next-auth/react'; // Disabled for MVP
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+  metadataBase: new URL('https://jaggercoach.vercel.app'),
+  title: 'Jägermeister BA Trainer',
+  description: 'AI-powered training simulator for Jägermeister Brand Ambassadors.',
 };
 
 export const viewport = {
@@ -78,7 +78,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Toaster position="top-center" />
-          <SessionProvider>{children}</SessionProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>
