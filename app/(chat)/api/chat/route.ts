@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     console.log('Incoming request:', {
       hasClientState: !!clientState,
       trainingStateTurn: trainingState?.turn,
-      messageText: message.parts[0]?.text,
+      messageText: message.parts[0]?.type === 'text' ? message.parts[0].text : undefined,
       scenarioType
     });
     

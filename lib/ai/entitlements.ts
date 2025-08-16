@@ -1,5 +1,7 @@
-import type { UserType } from '@/app/(auth)/auth';
+// import type { UserType } from '@/app/(auth)/auth'; // Disabled for MVP
 import type { ChatModel } from './models';
+
+type UserType = 'guest' | 'regular';
 
 interface Entitlements {
   maxMessagesPerDay: number;
