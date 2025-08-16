@@ -6,7 +6,7 @@ import {
 import { type RequestHints } from '@/lib/ai/prompts';
 import { generateUUID } from '@/lib/utils';
 import { TrainerState, createInitialState, appendUnique, updateObjectives, isScenarioComplete } from '@/lib/trainer-state';
-import { getAgentResponse } from '@/app/api/agent/route';
+import { getAgentResponse } from '@/lib/agent';
 import yaml from 'js-yaml';
 import fs from 'fs';
 import path from 'path';
