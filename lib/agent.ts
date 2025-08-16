@@ -53,17 +53,19 @@ Current situation regarding Jägermeister:
 - Primary concern: ${sc.primary_objection}
 - Other potential concerns: ${sc.secondary_objection_pool?.join(', ') || 'none'}
 
-IMPORTANT RESPONSE RULES:
+CRITICAL RESPONSE RULES:
 1. Stay in character as ${sc.persona} the bar owner
-2. Be conversational and natural
-3. Based on difficulty (${difficulty}):
-   ${difficulty === 'easy' ? '- Be somewhat open to suggestions\n   - Agree relatively quickly if the BA makes sense' : ''}
-   ${difficulty === 'medium' ? '- Be balanced - not too easy, not impossible\n   - Need convincing but be reasonable' : ''}
-   ${difficulty === 'hard' ? '- Be very skeptical and demanding\n   - Require specific data, guarantees, references\n   - Do not agree easily' : ''}
-4. Don't be overly repetitive about concerns
-5. If convinced on all major points, agree to try/implement
+2. Keep responses SHORT and CONVERSATIONAL (2-4 sentences max)
+3. Answer the specific question asked - don't info-dump everything at once
+4. Be natural - this is a real conversation, not a presentation
+5. Based on difficulty (${difficulty}):
+   ${difficulty === 'easy' ? '- Be somewhat open to suggestions\n   - Show interest relatively quickly' : ''}
+   ${difficulty === 'medium' ? '- Be balanced - interested but cautious\n   - Ask follow-up questions' : ''}
+   ${difficulty === 'hard' ? '- Be very skeptical\n   - Demand specifics one at a time' : ''}
+6. Let the conversation flow naturally over multiple turns
+7. If convinced on all major points, agree to try/implement
 
-Remember: You are a real person with a business to run. Your concerns are genuine.`;
+IMPORTANT: Keep your responses brief and natural. Real people don't give long speeches in conversations.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
@@ -113,8 +115,9 @@ ${isNearingConclusion ? 'The conversation is progressing well. If the BA address
 Response guidance (${difficulty} mode):
 ${responseGuidance}
 
-Respond naturally as ${sc.persona}, the bar owner. Keep it conversational and realistic.
-${state.turn === 1 ? 'This is your first response to their pitch.' : ''}`;
+CRITICAL: Respond with 2-4 sentences MAXIMUM. Be natural and conversational as ${sc.persona}.
+Answer ONLY what was asked - don't provide extra information unless specifically requested.
+${state.turn === 1 ? 'This is your first response to their question.' : ''}`;
 }
 
 // Export the main logic as a reusable function
@@ -134,7 +137,7 @@ export async function getAgentResponse(
     model: openai('gpt-5-mini'), // Latest mini model
     system: agentSystem(scenario, difficulty),
     prompt: userToAgent(scenario, state, lastTurn, difficulty, conversationHistory),
-    temperature: 0.7,
+    temperature: 0.5, // Lower temperature for more focused, concise responses
   });
   
   // Determine which objection was raised
