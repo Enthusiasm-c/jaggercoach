@@ -67,7 +67,7 @@ async function simulateRealDialogue(
   console.log(`${colors.cyan}${'═'.repeat(70)}${colors.reset}\n`);
 
   // Initialize training state
-  let state = createInitialState(scenarioId, scenario.must_cover_high5);
+  let state = createInitialState(scenarioId as 'product_absent' | 'no_promo' | 'no_perfect_serve', scenario.must_cover_high5);
   state.turn = 0;
 
   // Show scenario introduction

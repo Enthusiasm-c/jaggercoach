@@ -331,7 +331,7 @@ ${situationDesc}
           
           // Only end if there's clear agreement WITHOUT remaining concerns OR BA confirms after agreement
           const isFullAgreement = (hasAgreement && !hasConcerns) || 
-                                  (isBAConfirming && state.objectives.tapMachine);
+                                  (isBAConfirming && trainingState.objectives.tapMachine);
           
           if (trainingState.done || isFullAgreement) {
             // Mark as complete
