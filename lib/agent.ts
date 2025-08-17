@@ -56,18 +56,18 @@ Current situation regarding Jägermeister:
 CRITICAL RESPONSE RULES:
 1. Stay in character as ${sc.persona} the bar owner
 2. Keep responses SHORT and CONVERSATIONAL (2-4 sentences max)
-3. Answer the specific question asked - don't info-dump everything at once
-4. Be natural - this is a real conversation, not a presentation
-5. NEVER repeat concerns that have been addressed - acknowledge when BA answers your questions
-6. Track what's been discussed and move the conversation FORWARD
+3. ANSWER what the BA asked - don't ask multiple new questions
+4. If BA asks a question, ANSWER IT directly first
+5. You can express ONE concern if relevant, but don't interrogate the BA
+6. NEVER repeat concerns that have been addressed
 7. Based on difficulty (${difficulty}):
-   ${difficulty === 'easy' ? '- Be open to suggestions\n   - Agree after 1-2 concerns addressed' : ''}
-   ${difficulty === 'medium' ? '- Be balanced but reasonable\n   - Agree after 2-3 concerns addressed' : ''}
-   ${difficulty === 'hard' ? '- Be skeptical but fair\n   - Agree after 3-4 concerns addressed' : ''}
-8. When BA addresses your concerns adequately, ACKNOWLEDGE it and move on or agree
-9. If BA has addressed all major concerns, say YES to the trial
+   ${difficulty === 'easy' ? '- Be open and positive\n   - Agree after 1-2 concerns addressed' : ''}
+   ${difficulty === 'medium' ? '- Be thoughtful but fair\n   - Express concerns naturally\n   - Agree after 2-3 concerns addressed' : ''}
+   ${difficulty === 'hard' ? '- Be skeptical but listen\n   - Need convincing data\n   - Agree after 3-4 concerns addressed' : ''}
+8. When BA addresses your concerns, ACKNOWLEDGE and move forward
+9. If major concerns are addressed, agree to the trial
 
-IMPORTANT: Real conversations progress. Don't loop back to answered questions.`;
+IMPORTANT: The BA is leading this conversation. React to them, don't lead.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
@@ -96,11 +96,11 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
   // Get appropriate response guidance based on difficulty
   let responseGuidance = '';
   if (difficulty === 'easy') {
-    responseGuidance = 'Be open to the BA\'s suggestions. If they make a reasonable point, agree to try it.';
+    responseGuidance = 'Answer their question positively. Show openness to trying their solution.';
   } else if (difficulty === 'medium') {
-    responseGuidance = 'Be balanced. Ask follow-up questions. Need some convincing but be reasonable.';
+    responseGuidance = 'Answer their question honestly. Express your actual concern but be reasonable.';
   } else {
-    responseGuidance = 'Be very skeptical. Demand specifics, data, guarantees. Don\'t agree easily.';
+    responseGuidance = 'Answer their question skeptically. Need concrete data and guarantees to be convinced.';
   }
 
   // Track what BA has addressed
@@ -123,6 +123,15 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
     baAddressedPoints.push('customization for venue');
   }
 
+  // Detect if BA is asking a question
+  const isBAAsking = lastTurn.includes('?') || 
+                     lastTurnLower.includes('what') || 
+                     lastTurnLower.includes('how') || 
+                     lastTurnLower.includes('when') ||
+                     lastTurnLower.includes('who') ||
+                     lastTurnLower.includes('which') ||
+                     lastTurnLower.includes('tell me');
+
   return `The BA (Brand Ambassador) just said: "${lastTurn}"
 
 Context:
@@ -133,6 +142,7 @@ Context:
 - Previous objections raised: ${state.objectionsRaised.join(', ') || 'none yet'}
 - Agreements so far: ${JSON.stringify(state.objectives)}
 
+${isBAAsking ? '⚠️ The BA asked you a question - ANSWER IT DIRECTLY!' : ''}
 ${isNearingConclusion ? 'The BA has addressed your concerns. Time to make a decision.' : ''}
 ${state.turn > 8 ? 'IMPORTANT: This conversation has gone on long enough. If main concerns are addressed, agree to the trial.' : ''}
 
@@ -141,10 +151,11 @@ ${responseGuidance}
 
 CRITICAL RULES:
 1. Respond with 2-4 sentences MAXIMUM
-2. If BA addressed your concern, ACKNOWLEDGE it and move forward
-3. Don't repeat questions about things BA already covered
-4. ${state.turn > 6 ? 'Consider agreeing if main concerns are addressed' : 'Be conversational'}
-${state.turn === 1 ? 'This is your first response to their question.' : ''}`;
+2. ${isBAAsking ? 'ANSWER THE QUESTION FIRST before anything else' : 'React to what BA said'}
+3. Don't ask multiple questions - you can mention ONE concern at most
+4. Don't repeat things already discussed
+5. ${state.turn > 6 ? 'Consider agreeing if main concerns are addressed' : 'Be conversational'}
+${state.turn === 1 ? 'This is your first response. React naturally.' : ''}`;
 }
 
 // Export the main logic as a reusable function
