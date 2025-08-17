@@ -210,15 +210,32 @@ ${situationDesc}
             throw new Error('Scenario not found');
           }
           
-          // Track conversation topics from user's questions
-          if (userText.toLowerCase().includes('audience') || userText.toLowerCase().includes('guests') || userText.toLowerCase().includes('who')) {
+          // Track conversation topics and what BA has addressed
+          const userLower = userText.toLowerCase();
+          
+          // Track topics discussed
+          if (userLower.includes('audience') || userLower.includes('guests') || userLower.includes('who')) {
             trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'audience_described');
           }
-          if (userText.toLowerCase().includes('promo') || userText.toLowerCase().includes('special') || userText.toLowerCase().includes('offer')) {
+          if (userLower.includes('promo') || userLower.includes('special') || userLower.includes('offer')) {
             trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'promos_described');
           }
-          if (userText.toLowerCase().includes('bestseller') || userText.toLowerCase().includes('best seller') || userText.toLowerCase().includes('popular')) {
+          if (userLower.includes('bestseller') || userLower.includes('best seller') || userLower.includes('popular')) {
             trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'bestsellers_described');
+          }
+          
+          // Track what BA has addressed/agreed to
+          if (userLower.includes('one bottle') || userLower.includes('single bottle') || userLower.includes('just one')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'trial_size_agreed');
+          }
+          if (userLower.includes('custom') || userLower.includes('minimal') || userLower.includes('subtle')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'posm_agreed');
+          }
+          if (userLower.includes('consignment') || userLower.includes('return') || userLower.includes('take back')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'return_policy_agreed');
+          }
+          if (userLower.includes('free') || userLower.includes('no cost') || userLower.includes('covered')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'free_trial_agreed');
           }
 
           // Get agent response ONLY - no judge for speed
@@ -276,7 +293,7 @@ ${situationDesc}
           trainingState.done = isScenarioComplete(trainingState);
           trainingState.turn += 1;
           
-          // Update stored state
+          // Store updated conversation topics and state
           trainingStates.set(id, trainingState);
           
           // Send training state update

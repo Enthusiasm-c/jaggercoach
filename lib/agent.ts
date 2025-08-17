@@ -53,21 +53,31 @@ Current situation regarding Jägermeister:
 - Primary concern: ${sc.primary_objection}
 - Other potential concerns: ${sc.secondary_objection_pool?.join(', ') || 'none'}
 
+CONVERSATION MEMORY - Track what's been discussed:
+- When BA agrees to something (like "one bottle" or "custom design"), that concern is RESOLVED
+- Don't bring up resolved concerns again
+- Each turn should address NEW topics or move toward agreement
+- If 2+ concerns are resolved, it's time to agree to the trial
+
 CRITICAL RESPONSE RULES:
 1. Stay in character as ${sc.persona} the bar owner
 2. Keep responses SHORT and CONVERSATIONAL (2-4 sentences max)
 3. ANSWER what the BA asked - don't ask multiple new questions
 4. If BA asks a question, ANSWER IT directly first
 5. You can express ONE concern if relevant, but don't interrogate the BA
-6. NEVER repeat concerns that have been addressed
-7. Based on difficulty (${difficulty}):
+6. NEVER EVER repeat concerns that have been addressed or agreed to
+7. If BA says "one bottle" - DON'T ask about trial size again
+8. If BA says "custom/minimal" - DON'T ask about POSM again
+9. Progress the conversation - acknowledge agreements and move forward
+10. Based on difficulty (${difficulty}):
    ${difficulty === 'easy' ? '- Be open and positive\n   - Agree after 1-2 concerns addressed' : ''}
    ${difficulty === 'medium' ? '- Be thoughtful but fair\n   - Express concerns naturally\n   - Agree after 2-3 concerns addressed' : ''}
    ${difficulty === 'hard' ? '- Be skeptical but listen\n   - Need convincing data\n   - Agree after 3-4 concerns addressed' : ''}
-8. When BA addresses your concerns, ACKNOWLEDGE and move forward
-9. If major concerns are addressed, agree to the trial
+11. When BA addresses your concerns, ACKNOWLEDGE and move forward
+12. If 2+ major concerns are addressed, AGREE to the trial
 
-IMPORTANT: The BA is leading this conversation. React to them, don't lead.`;
+IMPORTANT: The BA is leading this conversation. React to them, don't lead.
+IMPORTANT: Track what's been agreed. Don't loop back to settled issues.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
@@ -90,8 +100,12 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
   const hasAgreedToSomething = checkIfAgreed(state);
   const isNearingConclusion = state.turn > 5 && hasAgreedToSomething;
   
-  // Build context about what's been discussed
+  // Build context about what's been discussed and agreed
   const discussedTopics = conversationHistory?.join(', ') || 'nothing specific yet';
+  const hasAgreedToTrialSize = conversationHistory?.includes('trial_size_agreed');
+  const hasAgreedToPOSM = conversationHistory?.includes('posm_agreed');
+  const hasAgreedToReturn = conversationHistory?.includes('return_policy_agreed');
+  const hasAgreedToFree = conversationHistory?.includes('free_trial_agreed');
   
   // Get appropriate response guidance based on difficulty
   let responseGuidance = '';
@@ -132,6 +146,13 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
                      lastTurnLower.includes('which') ||
                      lastTurnLower.includes('tell me');
 
+  // Build list of already addressed items
+  const alreadyAddressed = [];
+  if (hasAgreedToTrialSize) alreadyAddressed.push('Trial size (one bottle agreed)');
+  if (hasAgreedToPOSM) alreadyAddressed.push('POSM/materials (minimal/custom agreed)');
+  if (hasAgreedToReturn) alreadyAddressed.push('Return policy (agreed)');
+  if (hasAgreedToFree) alreadyAddressed.push('Pricing (free trial agreed)');
+
   return `The BA (Brand Ambassador) just said: "${lastTurn}"
 
 Context:
@@ -141,8 +162,10 @@ Context:
 - BA has addressed: ${baAddressedPoints.join(', ') || 'nothing specific yet'}
 - Previous objections raised: ${state.objectionsRaised.join(', ') || 'none yet'}
 - Agreements so far: ${JSON.stringify(state.objectives)}
+${alreadyAddressed.length > 0 ? `- ✅ ALREADY AGREED TO: ${alreadyAddressed.join(', ')}` : ''}
 
 ${isBAAsking ? '⚠️ The BA asked you a question - ANSWER IT DIRECTLY!' : ''}
+${hasAgreedToTrialSize && hasAgreedToPOSM ? '⚠️ Main concerns addressed - time to close the deal!' : ''}
 ${isNearingConclusion ? 'The BA has addressed your concerns. Time to make a decision.' : ''}
 ${state.turn > 8 ? 'IMPORTANT: This conversation has gone on long enough. If main concerns are addressed, agree to the trial.' : ''}
 
@@ -152,10 +175,11 @@ ${responseGuidance}
 CRITICAL RULES:
 1. Respond with 2-4 sentences MAXIMUM
 2. ${isBAAsking ? 'ANSWER THE QUESTION FIRST before anything else' : 'React to what BA said'}
-3. Don't ask multiple questions - you can mention ONE concern at most
-4. Don't repeat things already discussed
-5. ${state.turn > 6 ? 'Consider agreeing if main concerns are addressed' : 'Be conversational'}
-${state.turn === 1 ? 'This is your first response. React naturally.' : ''}`;
+3. NEVER repeat concerns about: ${alreadyAddressed.join(', ') || 'nothing yet'}
+4. ${alreadyAddressed.length >= 2 ? '✅ 2+ CONCERNS RESOLVED - AGREE TO THE TRIAL NOW!' : 'Mention ONE new concern at most'}
+5. ${state.turn > 6 ? 'Time to close - agree if concerns are addressed' : 'Be conversational'}
+${state.turn === 1 ? 'This is your first response. React naturally.' : ''}
+${alreadyAddressed.length >= 2 ? '\n⚠️ IMPORTANT: You have 2+ resolved concerns. Time to say YES!' : ''}`;
 }
 
 // Export the main logic as a reusable function
