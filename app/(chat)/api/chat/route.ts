@@ -238,6 +238,22 @@ ${situationDesc}
             trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'free_trial_agreed');
           }
 
+          // Check if conversation already ended (agent already agreed)
+          if (trainingState.done) {
+            console.log('Conversation already complete, ending.');
+            
+            // Send completion message
+            dataStream.write({
+              type: 'data-appendMessage',
+              data: JSON.stringify({
+                id: generateUUID(),
+                role: 'system',
+                parts: [{ type: 'text', text: '✅ Deal closed! Type "Hello" to start a new scenario.' }],
+              }),
+            });
+            return;
+          }
+          
           // Get agent response ONLY - no judge for speed
           console.log('Calling agent with state:', { 
             scenarioId: trainingState.scenarioId, 
@@ -259,13 +275,16 @@ ${situationDesc}
           console.log(`Agent response time: ${agentTime}ms`);
           
           // Simple progress tracking without judge delay
-          // Check for keywords to update objectives
+          // Check for agreement in agent's response
           const agentReplyLower = agentData.reply.toLowerCase();
-          if (agentReplyLower.includes("let's try") || agentReplyLower.includes("deal") || 
-              agentReplyLower.includes("let's do") || agentReplyLower.includes("i'm in") ||
-              agentReplyLower.includes("let's run a trial") || agentReplyLower.includes("we're in for") ||
-              agentReplyLower.includes("give it a go") || agentReplyLower.includes("book it") ||
-              agentReplyLower.includes("tomorrow") || agentReplyLower.includes("perfect")) {
+          const agentAgreed = agentReplyLower.includes("alright, let's try") || 
+                             agentReplyLower.includes("let's do it") ||
+                             agentReplyLower.includes("i'm convinced") ||
+                             agentReplyLower.includes("deal") ||
+                             agentReplyLower.includes("when can you");
+          
+          if (agentAgreed) {
+            // Mark objectives as complete based on scenario
             if (trainingState.scenarioId === 'product_absent') {
               trainingState.objectives.trialOrder = true;
             } else if (trainingState.scenarioId === 'no_promo') {
@@ -273,6 +292,8 @@ ${situationDesc}
             } else if (trainingState.scenarioId === 'no_perfect_serve') {
               trainingState.objectives.tapMachine = true;
             }
+            // Mark conversation as done immediately
+            trainingState.done = true;
           }
           if (agentReplyLower.includes("training") || agentReplyLower.includes("show them")) {
             trainingState.objectives.staffTraining = true;
@@ -390,6 +411,9 @@ Type "Hello" to try another scenario!
                 parts: [{ type: 'text', text: finalSummary }],
               }),
             });
+            
+            // Clear the training state for this chat to allow new scenario
+            trainingStates.delete(id);
           }
         } else {
           // For non-training messages, just echo back
