@@ -47,11 +47,20 @@ HOW TO RESPOND:
 5. Be a real person, not a robot
 
 ENDING THE CONVERSATION:
-• If your main concerns are addressed → Agree to try it
-• If the conversation drags on (8+ turns) → Make a decision
-• If BA gives you good solutions → Don't be stubborn
+• If BA addresses your main concern AND asks "deal?" → Say YES
+• Once you say "let's do it" or "deal" → YOU'RE COMMITTED, don't backtrack
+• If BA keeps agreeing to your conditions → Stop asking for more
+• After 8 turns → Make a final decision
 
-Remember: You're having a real conversation. React naturally to what the BA says.`;
+IMPORTANT RULE: Once you agree (say "deal", "let's do it", etc.), the conversation is DONE.
+Don't add new conditions or concerns after agreeing.
+
+CLOSING PHRASES TO USE:
+• "Great, let's do it. When can we start?"
+• "Sounds good, we have a deal."
+• "Perfect, I'm on board."
+
+Remember: You're a business owner who WANTS to succeed. Once your concerns are addressed, close the deal and STICK TO IT.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
@@ -64,39 +73,73 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
                     lastTurnLower.includes('when') ||
                     lastTurnLower.includes('who');
   
-  // Track what BA has offered/addressed
-  const hasOfferedSolution = lastTurnLower.includes('free') || 
-                             lastTurnLower.includes('trial') ||
-                             lastTurnLower.includes('training') ||
-                             lastTurnLower.includes('we provide') ||
-                             lastTurnLower.includes('we offer') ||
-                             lastTurnLower.includes('guarantee');
+  // Track what BA has agreed to IN THIS MESSAGE
+  const agreedToInThisTurn = {
+    noPOSM: lastTurnLower.includes('no posm') || lastTurnLower.includes('no poster') || 
+            lastTurnLower.includes('no bulky') || lastTurnLower.includes('low-key'),
+    training: lastTurnLower.includes('training') || lastTurnLower.includes('train') || 
+              lastTurnLower.includes('brief'),
+    freeProduct: lastTurnLower.includes('free product') || lastTurnLower.includes('free bottle'),
+    trial: lastTurnLower.includes('trial') || lastTurnLower.includes('test'),
+  };
   
-  // Simple decision logic
-  const shouldConsiderAgreeing = state.turn > 6 || // Long conversation
-                                 (difficulty === 'easy' && state.turn > 3 && hasOfferedSolution) ||
-                                 (difficulty === 'medium' && state.turn > 4 && hasOfferedSolution) ||
-                                 (difficulty === 'hard' && state.turn > 6 && hasOfferedSolution);
+  // Track cumulative agreements from conversation history
+  const previousAgreements = (conversationHistory || []).join(' ').toLowerCase();
+  const alreadyAgreedTo = {
+    noPOSM: previousAgreements.includes('no posm') || previousAgreements.includes('no poster'),
+    training: previousAgreements.includes('training_agreed') || previousAgreements.includes('staff_training'),
+    freeProduct: previousAgreements.includes('free_trial') || previousAgreements.includes('free_product'),
+  };
+  
+  // Check if agent already closed the deal in a previous turn
+  const alreadyClosedDeal = previousAgreements.includes('deal_closed') || 
+                           previousAgreements.includes('agent_agreed');
+  
+  // Check if BA is asking for closure
+  const baWantsToClose = lastTurnLower.includes('deal?') || 
+                         lastTurnLower.includes('so deal') ||
+                         lastTurnLower.includes('let\'s do') ||
+                         lastTurnLower.includes('ok?') ||
+                         lastTurnLower.includes('agreed?');
+  
+  // Determine if main concerns are addressed
+  const mainConcernsAddressed = 
+    (sc.id === 'no_promo' && (agreedToInThisTurn.noPOSM || alreadyAgreedTo.noPOSM)) ||
+    (sc.id === 'product_absent' && (agreedToInThisTurn.trial || alreadyAgreedTo.freeProduct)) ||
+    (sc.id === 'no_perfect_serve' && (agreedToInThisTurn.training || alreadyAgreedTo.training));
+  
+  // Decision logic
+  const shouldCloseDeal = baWantsToClose && mainConcernsAddressed;
+  const shouldStopRepeating = state.turn > 8 || (baWantsToClose && state.turn > 4);
 
   return `BA just said: "${lastTurn}"
 
 CONTEXT:
-• This is turn ${state.turn} of the conversation
-• You've raised these concerns: ${state.objectionsRaised.join(', ') || 'none yet'}
-• BA ${isQuestion ? 'is asking you a question' : 'is making a pitch'}
+• Turn ${state.turn} of conversation
+• Scenario: ${sc.title || 'Bar discussion'}
+${alreadyAgreedTo.noPOSM ? '• ✅ BA already agreed: No POSM' : ''}
+${alreadyAgreedTo.training ? '• ✅ BA already agreed: Training provided' : ''}
+${alreadyAgreedTo.freeProduct ? '• ✅ BA already agreed: Free product/trial' : ''}
+
+CRITICAL DECISION RULES:
+${alreadyClosedDeal ?
+'✅ YOU ALREADY AGREED! Just confirm next steps like timing or logistics.' :
+shouldCloseDeal ? 
+'🟢 CLOSE THE DEAL NOW! BA addressed your concerns and wants to close. Say: "Great, let\'s do it. When can we start?"' :
+baWantsToClose ? 
+'🟡 BA wants to close. If they addressed your MAIN concern, agree. Otherwise, state ONE remaining concern clearly.' :
+shouldStopRepeating ?
+'🔴 Conversation too long. Make a decision: agree or politely decline.' :
+'Continue naturally but don\'t repeat concerns already addressed.'}
 
 YOUR RESPONSE:
-${isQuestion ? 
-'Answer their question naturally. Share real information about your venue, customers, or situation.' :
-'React to their pitch. If it addresses your concerns, acknowledge it. If not, explain what worries you.'}
+${isQuestion && !baWantsToClose ? 
+'Answer their question about your venue/situation.' :
+shouldCloseDeal ?
+'AGREE TO THE DEAL. Be positive and ask about next steps.' :
+'React to their offer. If it addresses your concern, acknowledge it.'}
 
-${shouldConsiderAgreeing ? 
-`⚠️ The conversation has gone on long enough. Time to make a decision:
-- If BA has addressed your main concerns → Agree to try it
-- If still not convinced → Politely decline` : 
-'Continue the conversation naturally.'}
-
-Remember: Keep it short (1-3 sentences) and conversational.`;
+IMPORTANT: Don't ask for confirmations about things BA already agreed to.`;
 }
 
 // Export the main logic as a reusable function

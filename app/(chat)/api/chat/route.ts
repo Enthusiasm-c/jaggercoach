@@ -228,14 +228,17 @@ ${situationDesc}
           if (userLower.includes('one bottle') || userLower.includes('single bottle') || userLower.includes('just one')) {
             trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'trial_size_agreed');
           }
-          if (userLower.includes('custom') || userLower.includes('minimal') || userLower.includes('subtle')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'posm_agreed');
+          if (userLower.includes('no posm') || userLower.includes('no poster') || userLower.includes('low-key') || userLower.includes('no bulky')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'no_posm');
           }
-          if (userLower.includes('consignment') || userLower.includes('return') || userLower.includes('take back')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'return_policy_agreed');
+          if (userLower.includes('training') || userLower.includes('train your') || userLower.includes('brief')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'training_agreed');
           }
           if (userLower.includes('free') || userLower.includes('no cost') || userLower.includes('covered')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'free_trial_agreed');
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'free_trial');
+          }
+          if (userLower.includes('yes') || userLower.includes('sure') || userLower.includes('of course')) {
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'ba_confirmed');
           }
 
           // Check if conversation already ended (agent already agreed)
@@ -277,11 +280,13 @@ ${situationDesc}
           // Simple progress tracking without judge delay
           // Check for agreement in agent's response
           const agentReplyLower = agentData.reply.toLowerCase();
-          const agentAgreed = agentReplyLower.includes("alright, let's try") || 
-                             agentReplyLower.includes("let's do it") ||
+          const agentAgreed = agentReplyLower.includes("let's do it") || 
+                             agentReplyLower.includes("let's try") ||
                              agentReplyLower.includes("i'm convinced") ||
-                             agentReplyLower.includes("deal") ||
-                             agentReplyLower.includes("when can you");
+                             agentReplyLower.includes("we have a deal") ||
+                             agentReplyLower.includes("sounds good") ||
+                             agentReplyLower.includes("i'm on board") ||
+                             agentReplyLower.includes("when can");
           
           if (agentAgreed) {
             // Mark objectives as complete based on scenario
@@ -294,6 +299,9 @@ ${situationDesc}
             }
             // Mark conversation as done immediately
             trainingState.done = true;
+            // Add to conversation history that agent agreed
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'agent_agreed');
+            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'deal_closed');
           }
           if (agentReplyLower.includes("training") || agentReplyLower.includes("show them")) {
             trainingState.objectives.staffTraining = true;
