@@ -62,9 +62,10 @@ Secondary: ${sc.secondary_objection_pool?.join(', ') || 'none'}
    - Focus on real business concerns (speed, staff, space, guests)
 
 4. FINAL DECISION (Interaction ${limit}):
-   - If BA addressed your objections well: "Alright, let's try it. [specific next step]"
-   - If BA failed to convince: "Sorry, I'm not convinced. Maybe another time."
-   - No middle ground - clear YES or NO
+   - Give ONLY the decision, no objection before it
+   - If convinced: "Alright, let's try it. When can you start?"
+   - If not convinced: "Sorry, I'm not convinced. Maybe another time."
+   - ONE RESPONSE ONLY - just the decision
 
 5. DIFFICULTY BEHAVIORS:
 ${difficulty === 'easy' ? `   - Be open to reasonable solutions
@@ -90,7 +91,13 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
   };
   
   const limit = interactionLimits[difficulty as keyof typeof interactionLimits] || 3;
-  const currentInteraction = Math.ceil(state.turn / 2); // Each interaction = 2 turns (BA speaks, Agent responds)
+  // Turn 1, 3, 5, 7 = agent responds (odd turns)
+  // Turn 2, 4, 6, 8 = BA speaks (even turns)
+  // But we start at turn 1 after intro, so:
+  // Turn 1 = interaction 1, Turn 2 = still interaction 1
+  // Turn 3 = interaction 2, Turn 4 = still interaction 2
+  // Turn 5 = interaction 3, Turn 6 = still interaction 3
+  const currentInteraction = Math.ceil(state.turn / 2);
   const isFinalInteraction = currentInteraction >= limit;
   
   // Track what objections have been raised
@@ -118,34 +125,39 @@ function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty:
     addressedWell.push('staff concerns');
   }
 
+  // Debug logging
+  console.log('Agent turn calculation:', {
+    stateTurn: state.turn,
+    currentInteraction,
+    limit,
+    isFinalInteraction
+  });
+
   return `BA just said: "${lastTurn}"
 
 ==[ CURRENT STATUS ]==
+Turn: ${state.turn}
 Interaction: ${currentInteraction} of ${limit}
-${isFinalInteraction ? '🔴 FINAL INTERACTION - GIVE YOUR DECISION!' : `Objection to raise: ${nextObjection}`}
+${isFinalInteraction ? '🔴 THIS IS YOUR FINAL RESPONSE - DECIDE NOW!' : `Next objection: ${nextObjection}`}
 
-==[ EVALUATION OF BA'S RESPONSE ]==
-BA addressed: ${addressedWell.join(', ') || 'nothing specific'}
-Quality: ${addressedWell.length >= 2 ? 'Good response' : addressedWell.length === 1 ? 'Partial response' : 'Weak response'}
-
-==[ YOUR TASK ]==
+==[ YOUR SINGLE TASK ]==
 ${isFinalInteraction ? 
-`FINAL DECISION TIME:
-- If BA gave good answers (addressed 2+ concerns well): "Alright, let's try it. When can you bring the trial bottle?"
-- If BA was weak/vague: "Sorry, I'm not convinced. Not interested right now."
-- Be decisive - clear YES or NO.` :
-`RAISE YOUR OBJECTION:
-- State clearly: "${nextObjection}"
-- Make it specific to your bar situation
-- 2-3 sentences maximum
-- Don't repeat previous objections: ${state.objectionsRaised.join(', ') || 'none yet'}`}
+`GIVE YOUR FINAL DECISION (choose one):
+- If convinced: "Alright, let's try it. When can you do the training?"
+- If not convinced: "Sorry, I'm not convinced. Maybe another time."
+ONLY ONE RESPONSE. NO OBJECTION + DECISION. JUST THE DECISION.` :
+`RAISE THIS OBJECTION:
+"${nextObjection}"
+- Say it naturally in 1-2 sentences
+- Don't add anything else
+- Don't make a decision yet`}
 
-==[ DIFFICULTY: ${difficulty.toUpperCase()} ]==
-${difficulty === 'easy' ? 'Be reasonable. Accept good solutions readily.' : ''}
-${difficulty === 'medium' ? 'Push for specifics. Need solid answers.' : ''}
-${difficulty === 'hard' ? 'Be tough. Demand proof and guarantees.' : ''}
+${isFinalInteraction ? 'CRITICAL: Give ONLY your decision. Nothing else.' : 'CRITICAL: Give ONLY the objection. No decision yet.'}
 
-REMEMBER: ${isFinalInteraction ? 'This is your FINAL response. Make a clear decision!' : `You have ${limit - currentInteraction} more interactions after this.`}`;
+Difficulty: ${difficulty.toUpperCase()}
+${difficulty === 'easy' && isFinalInteraction ? 'You should probably agree if BA tried.' : ''}
+${difficulty === 'medium' && isFinalInteraction ? 'Agree if BA addressed your main concerns.' : ''}
+${difficulty === 'hard' && isFinalInteraction ? 'Only agree if BA gave solid proof and guarantees.' : ''}`;
 }
 
 // Export the main logic as a reusable function
