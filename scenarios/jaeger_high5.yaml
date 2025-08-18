@@ -52,14 +52,15 @@ scenarios:
     must_cover_high5: ["Visibility", "Promo", "Staff"]
   - id: "no_perfect_serve"
     title: "No Perfect Serve"
-    persona: "cocktail bar with tap-free bar, 100 seats, high aesthetic requirements"
+    persona: "beach club manager, 100 seats, casual but quality-focused"
     intro: "Jägermeister is available but not served ice-cold - regular fridge."
-    primary_objection: "Don't want to turn it on for one product."
+    primary_objection: "Tap machine is too slow during rush hours, bottles are faster."
     secondary_objection_pool:
-      - "No space for Tap Machine / freezer"
-      - "Expensive maintenance/energy"
+      - "Staff don't know how to use it properly"
+      - "Takes up prime bar space we need for other things"
+      - "Guests don't care about temperature, they just want their shots"
     goals_for_ba:
-      - "Explain value of -18°C and agree on Tap Machine/freezer or alternative"
-      - "Define compact solution/placement without breaking aesthetics"
-      - "Set test period and sell-out control"
-    must_cover_high5: ["Ice Cold Serve", "Visibility", "Menu + Price"]
+      - "Explain value of -18°C for taste and brand experience"
+      - "Offer staff training to speed up service"
+      - "Show data on increased sales with perfect serve"
+    must_cover_high5: ["Ice Cold Serve", "Staff", "Menu + Price"]
