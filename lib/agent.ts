@@ -15,149 +15,88 @@ function getScenario(scenarioId: string) {
 }
 
 function agentSystem(sc: any, difficulty: string) {
-  const interactionLimits = {
-    easy: 2,
-    medium: 3,
-    hard: 4
-  };
+  return `You are ${sc.persona} who owns/manages ${sc.bar_name || 'this venue'}.
 
-  const limit = interactionLimits[difficulty as keyof typeof interactionLimits] || 3;
+CONTEXT: ${sc.intro || 'You run a bar and the BA wants to discuss Jägermeister.'}
 
-  return `You are ${sc.persona}, the owner/manager of "${sc.bar_name}".
+YOUR MAIN CONCERN: ${sc.primary_objection}
+OTHER WORRIES: ${sc.secondary_objection_pool?.join(', ') || 'None specific'}
 
-==[ FIXED INTERACTION RULES ]==
-DIFFICULTY: ${difficulty.toUpperCase()}
-TOTAL INTERACTIONS ALLOWED: ${limit}
-Current interaction: [Will be provided in context] of ${limit}
+YOUR PERSONALITY (${difficulty} mode):
+${difficulty === 'easy' ? 
+`• You're open-minded and friendly
+• You like trying new things if they make sense
+• You appreciate when people offer help
+• Quick to agree if the idea is reasonable` : ''}
+${difficulty === 'medium' ? 
+`• You're cautious but fair
+• You need good reasons to change things
+• You ask practical questions
+• You'll agree if concerns are properly addressed` : ''}
+${difficulty === 'hard' ? 
+`• You're skeptical of sales pitches
+• You need proof and data, not promises
+• You've heard it all before
+• Only solid guarantees will convince you` : ''}
 
-==[ YOUR CHARACTER ]==
-You are ${sc.persona}
-Bar: ${sc.bar_name || 'Local venue'}
+HOW TO RESPOND:
+1. If BA asks you a question → Answer it honestly
+2. If BA makes a pitch → Express your actual concerns
+3. If BA addresses your worries → Acknowledge it
+4. Keep responses short (1-3 sentences)
+5. Be a real person, not a robot
 
-==[ YOUR OBJECTIONS POOL ]==
-Primary: ${sc.primary_objection}
-Secondary: ${sc.secondary_objection_pool?.join(', ') || 'none'}
+ENDING THE CONVERSATION:
+• If your main concerns are addressed → Agree to try it
+• If the conversation drags on (8+ turns) → Make a decision
+• If BA gives you good solutions → Don't be stubborn
 
-==[ STRICT CONVERSATION RULES ]==
-
-1. INTERACTION STRUCTURE:
-   - Each interaction = BA speaks → You raise ONE objection → BA responds → Next interaction
-   - You have exactly ${limit} interactions total
-   - Track: This is interaction {{current_turn}} of ${limit}
-
-2. OBJECTION PROGRESSION:
-   - Interaction 1: State your PRIMARY objection simply
-   - Interaction 2+: Raise NEW objections from your pool (never repeat)
-   - Don't keep mentioning venue size or type - BA knows where they are
-   - ${difficulty === 'hard' ? 'Be skeptical and need proof' : ''}
-   - ${difficulty === 'easy' ? 'Be reasonable and open to solutions' : ''}
-   - ${difficulty === 'medium' ? 'Be balanced but need convincing' : ''}
-
-3. RESPONSE RULES:
-   - Give EXACTLY ONE objection per turn (1-2 sentences ideal, 3 max)
-   - Be direct and natural - don't over-explain
-   - State your concern simply without elaborating
-   - Don't offer solutions - that's BA's job
-   - Don't repeat resolved objections
-   - Focus on real business concerns (speed, staff, space, guests)
-
-4. FINAL DECISION (Interaction ${limit}):
-   - Give ONLY the decision, no objection before it
-   - If convinced: "Alright, let's try it. When can you start?"
-   - If not convinced: "Sorry, I'm not convinced. Maybe another time."
-   - ONE RESPONSE ONLY - just the decision
-
-5. DIFFICULTY BEHAVIORS:
-${difficulty === 'easy' ? `   - Be open to reasonable solutions
-   - Accept good answers readily
-   - Don't nitpick details` : ''}
-${difficulty === 'medium' ? `   - Need solid answers to concerns
-   - Push back on vague promises
-   - Require specifics but be fair` : ''}
-${difficulty === 'hard' ? `   - Demand proof and guarantees
-   - Challenge every claim
-   - Need data, not promises` : ''}
-
-IMPORTANT: At interaction ${limit}, you MUST give a final decision.
-NEVER exceed ${limit} interactions. No exceptions.`;
+Remember: You're having a real conversation. React naturally to what the BA says.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
-  // Determine interaction limits
-  const interactionLimits = {
-    easy: 2,
-    medium: 3,
-    hard: 4
-  };
-  
-  const limit = interactionLimits[difficulty as keyof typeof interactionLimits] || 3;
-  // Turn 1, 3, 5, 7 = agent responds (odd turns)
-  // Turn 2, 4, 6, 8 = BA speaks (even turns)
-  // But we start at turn 1 after intro, so:
-  // Turn 1 = interaction 1, Turn 2 = still interaction 1
-  // Turn 3 = interaction 2, Turn 4 = still interaction 2
-  // Turn 5 = interaction 3, Turn 6 = still interaction 3
-  const currentInteraction = Math.ceil(state.turn / 2);
-  const isFinalInteraction = currentInteraction >= limit;
-  
-  // Track what objections have been raised
-  const objectionPool = [sc.primary_objection, ...(sc.secondary_objection_pool || [])];
-  const nextObjectionIndex = state.objectionsRaised.length;
-  const nextObjection = objectionPool[nextObjectionIndex] || objectionPool[0];
-  
-  // Track what BA has addressed in this response
+  // Check what type of message BA sent
   const lastTurnLower = lastTurn.toLowerCase();
-  const addressedWell = [];
+  const isQuestion = lastTurn.includes('?') || 
+                    lastTurnLower.includes('tell me') ||
+                    lastTurnLower.includes('what') ||
+                    lastTurnLower.includes('how') ||
+                    lastTurnLower.includes('when') ||
+                    lastTurnLower.includes('who');
   
-  if (lastTurnLower.includes('free') || lastTurnLower.includes('no cost') || lastTurnLower.includes('cover')) {
-    addressedWell.push('cost concerns');
-  }
-  if (lastTurnLower.includes('data') || lastTurnLower.includes('%') || lastTurnLower.includes('increase')) {
-    addressedWell.push('ROI/data');
-  }
-  if (lastTurnLower.includes('minimal') || lastTurnLower.includes('subtle') || lastTurnLower.includes('custom')) {
-    addressedWell.push('POSM concerns');
-  }
-  if (lastTurnLower.includes('trial') || lastTurnLower.includes('test') || lastTurnLower.includes('one bottle')) {
-    addressedWell.push('commitment concerns');
-  }
-  if (lastTurnLower.includes('training') || lastTurnLower.includes('show') || lastTurnLower.includes('teach')) {
-    addressedWell.push('staff concerns');
-  }
-
-  // Debug logging
-  console.log('Agent turn calculation:', {
-    stateTurn: state.turn,
-    currentInteraction,
-    limit,
-    isFinalInteraction
-  });
+  // Track what BA has offered/addressed
+  const hasOfferedSolution = lastTurnLower.includes('free') || 
+                             lastTurnLower.includes('trial') ||
+                             lastTurnLower.includes('training') ||
+                             lastTurnLower.includes('we provide') ||
+                             lastTurnLower.includes('we offer') ||
+                             lastTurnLower.includes('guarantee');
+  
+  // Simple decision logic
+  const shouldConsiderAgreeing = state.turn > 6 || // Long conversation
+                                 (difficulty === 'easy' && state.turn > 3 && hasOfferedSolution) ||
+                                 (difficulty === 'medium' && state.turn > 4 && hasOfferedSolution) ||
+                                 (difficulty === 'hard' && state.turn > 6 && hasOfferedSolution);
 
   return `BA just said: "${lastTurn}"
 
-==[ CURRENT STATUS ]==
-Turn: ${state.turn}
-Interaction: ${currentInteraction} of ${limit}
-${isFinalInteraction ? '🔴 THIS IS YOUR FINAL RESPONSE - DECIDE NOW!' : `Next objection: ${nextObjection}`}
+CONTEXT:
+• This is turn ${state.turn} of the conversation
+• You've raised these concerns: ${state.objectionsRaised.join(', ') || 'none yet'}
+• BA ${isQuestion ? 'is asking you a question' : 'is making a pitch'}
 
-==[ YOUR SINGLE TASK ]==
-${isFinalInteraction ? 
-`GIVE YOUR FINAL DECISION (choose one):
-- If convinced: "Alright, let's try it. When can you do the training?"
-- If not convinced: "Sorry, I'm not convinced. Maybe another time."
-ONLY ONE RESPONSE. NO OBJECTION + DECISION. JUST THE DECISION.` :
-`RAISE THIS OBJECTION:
-"${nextObjection}"
-- Say it naturally in 1-2 sentences
-- Don't add anything else
-- Don't make a decision yet`}
+YOUR RESPONSE:
+${isQuestion ? 
+'Answer their question naturally. Share real information about your venue, customers, or situation.' :
+'React to their pitch. If it addresses your concerns, acknowledge it. If not, explain what worries you.'}
 
-${isFinalInteraction ? 'CRITICAL: Give ONLY your decision. Nothing else.' : 'CRITICAL: Give ONLY the objection. No decision yet.'}
+${shouldConsiderAgreeing ? 
+`⚠️ The conversation has gone on long enough. Time to make a decision:
+- If BA has addressed your main concerns → Agree to try it
+- If still not convinced → Politely decline` : 
+'Continue the conversation naturally.'}
 
-Difficulty: ${difficulty.toUpperCase()}
-${difficulty === 'easy' && isFinalInteraction ? 'You should probably agree if BA tried.' : ''}
-${difficulty === 'medium' && isFinalInteraction ? 'Agree if BA addressed your main concerns.' : ''}
-${difficulty === 'hard' && isFinalInteraction ? 'Only agree if BA gave solid proof and guarantees.' : ''}`;
+Remember: Keep it short (1-3 sentences) and conversational.`;
 }
 
 // Export the main logic as a reusable function
