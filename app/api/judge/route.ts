@@ -15,85 +15,106 @@ function getScenario(scenarioId: string) {
   return scenariosData.scenarios.find((s: any) => s.id === scenarioId);
 }
 
-function judgePrompt(sc: any, state: TrainerState, lastBA: string, lastOwnerResponse?: string) {
-  return `You are a supportive, practical sales coach for Jägermeister BAs.
-Your job: evaluate the BA's last response and provide a SPECIFIC, CONTEXTUAL hint for their NEXT response.
+function judgePrompt(sc: any, state: TrainerState, conversationHistory: Array<{role: string, message: string}>, difficulty: string = 'medium') {
+  const interactionLimits = {
+    easy: 2,
+    medium: 3,
+    hard: 4
+  };
+  
+  const limit = interactionLimits[difficulty as keyof typeof interactionLimits] || 3;
+  
+  return `You are the FINAL EVALUATOR for Jägermeister BA training.
 
-SCENARIO CONTEXT:
-• Title: ${sc.title}
-• Bar Owner: ${sc.persona}
-• Main Challenge: ${sc.primary_objection}
-• Turn Number: ${state.turn}
+==[ EVALUATION CONTEXT ]==
+Scenario: ${sc.title}
+Bar Owner: ${sc.persona} at ${sc.bar_name}
+Difficulty: ${difficulty.toUpperCase()} (${limit} interactions max)
+Primary Objection: ${sc.primary_objection}
 
-LAST EXCHANGE:
-• BA said: "${lastBA}"
-• Owner's likely concerns: ${sc.secondary_objection_pool ? JSON.stringify(sc.secondary_objection_pool) : 'unknown'}
+==[ YOUR ROLE ]==
+1. DO NOT INTERVENE during the conversation
+2. DO NOT PROVIDE hints during the dialogue
+3. ONLY evaluate AFTER all ${limit} interactions are complete
+4. Provide ONE comprehensive final report
 
-Scoring guidelines:
-• discovery: 0–3 (quality of venue questions about needs, challenges, current setup)
-• objection_handling: 0–3 (how well objections were addressed with practical solutions)
-• brand_balance: 0–2 (sales + brand image balance, not just discounts)
-• clarity_brevity: 0–2 (clear, concise speech without rambling)
+==[ CONVERSATION TO EVALUATE ]==
+${conversationHistory.map((turn, i) => `${turn.role}: ${turn.message}`).join('\n')}
 
-High 5 Elements to Track:
-• Ice Cold Serve (–18°C, Tap Machine/Freezer, clean service)
-• Menu + Price (visibility in menu, correct price)
-• Visibility (POSM, design fit)
-• Promo (guest-facing: group serve, 2+1, digital/table tent)
-• Staff (training, engagement)
+==[ SCORING CRITERIA ]==
+• discovery (0-3): Did BA ask good discovery questions about venue needs?
+• objection_handling (0-3): How well did BA address each objection with specific solutions?
+• clarity (0-2): Clear, concise communication without rambling?
+• brand_balance (0-2): Balanced brand value with commercial offers?
 
-Must-cover High5 for this scenario: ${JSON.stringify(sc.must_cover_high5 || [])}
+==[ HIGH-5 ELEMENTS TO CHECK ]==
+Required for this scenario: ${JSON.stringify(sc.must_cover_high5 || [])}
+• Ice Cold Serve: -18°C, tap/freezer discussions
+• Visibility: POSM, menu placement
+• Promo: Offers, trials, deals
+• Staff: Training mentions
+• Menu + Price: Pricing discussions
 
-Current progress:
-• Objectives achieved: ${JSON.stringify(state.objectives)}
-• High5 covered: ${state.coveredHigh5.join(', ') || 'none yet'}
+==[ RISK FLAGS TO CHECK ]==
+Flag ONLY if BA:
+• Focused only on discounts (no brand building)
+• Made unrealistic promises (300% growth, etc.)
+• Violated responsible serving
+• Was pushy or aggressive
 
-Return strictly JSON format only:
+==[ OUTPUT FORMAT - JSON ONLY ]==
 {
-  "scores": {
-    "discovery": 0,
-    "objection_handling": 0,
-    "brand_balance": 0,
-    "clarity_brevity": 0
+  "final_evaluation": {
+    "outcome": "SUCCESS" or "FAILURE",
+    "scores": {
+      "discovery": 0-3,
+      "objection_handling": 0-3,
+      "clarity": 0-2,
+      "brand_balance": 0-2
+    },
+    "total_score": 0-10,
+    "grade": "A/B/C/D/F"
   },
-  "commentary": "Positive feedback focusing on sales technique, not just High5 checklist",
-  "closed_high5_delta": ["Elements covered this turn"],
-  "uncovered_high5": ["Elements still to cover"],
-  "objective_delta": {
-    "trialOrder": false,
-    "promoAgreed": false,
-    "staffTraining": false,
-    "tapMachine": false
+  "summary": "2-3 sentence summary of overall performance",
+  "strengths": ["What BA did well", "Another strength"],
+  "improvements": ["Area to improve", "Another area"],
+  "high5_coverage": {
+    "required": ["list of required elements"],
+    "covered": ["what was actually covered"],
+    "missed": ["what was missed"]
   },
-  "objections_count": 0,
-  "risk_flags": ["discount_only_focus", "irresponsible_serving", "unrealistic_promise"],
-  "action_drill": "SPECIFIC hint for the NEXT response based on where the conversation is NOW (e.g., 'Ask about their peak hours and current shot prices' or 'Offer free trial with money-back guarantee' or 'Mention the 50% sales increase data')",
-  "final_ready": false,
-  "final_outcome": "Brief summary if scenario complete"
-}
-
-Flag risk_flags only if BA:
-- Focuses only on discounts without brand building
-- Promises unrealistic results
-- Violates responsible serving principles`;
+  "risk_flags": ["any violations"],
+  "key_moments": [
+    {"interaction": 1, "highlight": "What stood out"},
+    {"interaction": 2, "highlight": "Key moment"}
+  ],
+  "recommendation": "One specific tip for next time"
+}`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { scenarioId, state, lastBA, lastOwnerResponse } = await req.json();
+    const { scenarioId, state, conversationHistory, difficulty = 'medium', isFinal = false } = await req.json();
     
     const scenario = getScenario(scenarioId);
     if (!scenario) {
       return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
     }
 
+    // Only provide evaluation if conversation is complete
+    if (!isFinal) {
+      return NextResponse.json({
+        message: "Judge only evaluates after all interactions are complete",
+        waiting: true
+      });
+    }
+
     const { text } = await generateText({
       model: openai('gpt-5-mini'),
-      system: judgePrompt(scenario, state, lastBA, lastOwnerResponse),
-      prompt: `Evaluate the BA's response and provide a CONTEXTUAL hint.
-The bar owner just responded with: "${lastOwnerResponse || 'starting conversation'}"
-What should the BA say NEXT to address this specific response?
-Return JSON only.`,
+      system: judgePrompt(scenario, state, conversationHistory, difficulty),
+      prompt: `Provide the FINAL evaluation of this complete ${difficulty} difficulty conversation.
+The conversation has ended. Evaluate the BA's overall performance.
+Return JSON only as specified.`,
       temperature: 0.3,
     });
 
@@ -105,21 +126,28 @@ Return JSON only.`,
       console.error('Failed to parse judge response:', text);
       // Return a default evaluation if parsing fails
       return NextResponse.json({
-        scores: {
-          discovery: 1,
-          objection_handling: 1,
-          brand_balance: 1,
-          clarity_brevity: 1
+        final_evaluation: {
+          outcome: "ERROR",
+          scores: {
+            discovery: 0,
+            objection_handling: 0,
+            clarity: 0,
+            brand_balance: 0
+          },
+          total_score: 0,
+          grade: "F"
         },
-        commentary: "Good effort! Keep focusing on addressing the owner's specific concerns.",
-        closed_high5_delta: [],
-        uncovered_high5: scenario.must_cover_high5 || [],
-        objective_delta: {},
-        objections_count: state.objectionsRaised.length,
+        summary: "Evaluation could not be completed due to technical error.",
+        strengths: [],
+        improvements: ["Please try again"],
+        high5_coverage: {
+          required: scenario.must_cover_high5 || [],
+          covered: [],
+          missed: scenario.must_cover_high5 || []
+        },
         risk_flags: [],
-        action_drill: "Try asking more discovery questions about the venue's needs.",
-        final_ready: false,
-        final_outcome: ""
+        key_moments: [],
+        recommendation: "Please retry the scenario"
       });
     }
   } catch (error) {

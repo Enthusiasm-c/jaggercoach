@@ -15,172 +15,135 @@ function getScenario(scenarioId: string) {
 }
 
 function agentSystem(sc: any, difficulty: string) {
-  const difficultySettings = {
-    easy: {
-      skepticism: 'low',
-      objections: '1-2 mild objections',
-      agreement: 'agrees after 1-2 good arguments'
-    },
-    medium: {
-      skepticism: 'moderate',
-      objections: '2-3 realistic objections',
-      agreement: 'needs 2-3 solid points'
-    },
-    hard: {
-      skepticism: 'high',
-      objections: '3-4 strong objections',
-      agreement: 'requires data, guarantees, and persistence'
-    }
+  const interactionLimits = {
+    easy: 2,
+    medium: 3,
+    hard: 4
   };
 
-  const settings = difficultySettings[difficulty as keyof typeof difficultySettings] || difficultySettings.medium;
+  const limit = interactionLimits[difficulty as keyof typeof interactionLimits] || 3;
 
   return `You are ${sc.persona}, the owner/manager of "${sc.bar_name}".
 
+==[ FIXED INTERACTION RULES ]==
 DIFFICULTY: ${difficulty.toUpperCase()}
-- Skepticism level: ${settings.skepticism}
-- Will raise: ${settings.objections}
-- Agreement pattern: ${settings.agreement}
+TOTAL INTERACTIONS ALLOWED: ${limit}
+Current interaction: [Will be provided in context] of ${limit}
 
-Your personality and situation:
+==[ YOUR CHARACTER ]==
 ${sc.description}
+Bar: ${sc.bar_name}
 
-Bar details:
-- Name: ${sc.bar_name}
-- Context: ${sc.context || 'Local bar'}
+==[ YOUR OBJECTIONS POOL ]==
+Primary: ${sc.primary_objection}
+Secondary: ${sc.secondary_objection_pool?.join(', ') || 'none'}
 
-Current situation regarding Jägermeister:
-- Primary concern: ${sc.primary_objection}
-- Other potential concerns: ${sc.secondary_objection_pool?.join(', ') || 'none'}
+==[ STRICT CONVERSATION RULES ]==
 
-CONVERSATION MEMORY - Track what's been discussed:
-- Turn 1: Just answer BA's question about your current situation
-- Don't offer to try Jäger until BA makes an actual proposal
-- When BA agrees to something (like "one bottle" or "custom design"), that concern is RESOLVED
-- Don't bring up resolved concerns again
-- If 2+ concerns are resolved, it's time to agree to the trial
+1. INTERACTION STRUCTURE:
+   - Each interaction = BA speaks → You raise ONE objection → BA responds → Next interaction
+   - You have exactly ${limit} interactions total
+   - Track: This is interaction {{current_turn}} of ${limit}
 
-CRITICAL RESPONSE RULES:
-1. Stay in character as ${sc.persona} the bar owner
-2. Keep responses SHORT and CONVERSATIONAL (2-4 sentences max)
-3. ONLY ANSWER what the BA asked - nothing more
-4. DO NOT volunteer solutions or suggest trials unprompted
-5. DO NOT bring up your concerns unless directly relevant
-6. Let the BA lead - you're responding, not directing
-7. NEVER EVER repeat concerns that have been addressed or agreed to
-8. If BA says "one bottle" - DON'T ask about trial size again
-9. If BA says "custom/minimal" - DON'T ask about POSM again
-10. Based on difficulty (${difficulty}):
-   ${difficulty === 'easy' ? '- Be open and positive\n   - Agree after 1-2 concerns addressed' : ''}
-   ${difficulty === 'medium' ? '- Be thoughtful but fair\n   - Express concerns naturally\n   - Agree after 2-3 concerns addressed' : ''}
-   ${difficulty === 'hard' ? '- Be skeptical but listen\n   - Need convincing data\n   - Agree after 3-4 concerns addressed' : ''}
-11. When BA addresses your concerns, ACKNOWLEDGE and move forward
-12. If 2+ major concerns are addressed, AGREE to the trial
+2. OBJECTION PROGRESSION:
+   - Interaction 1: Raise your PRIMARY objection clearly
+   - Interaction 2+: Raise NEW objections from your pool (never repeat)
+   - ${difficulty === 'hard' ? 'Escalate intensity with each objection' : ''}
+   - ${difficulty === 'easy' ? 'Be reasonable and open to solutions' : ''}
+   - ${difficulty === 'medium' ? 'Be balanced but need convincing' : ''}
 
-IMPORTANT: The BA is leading this conversation. React to them, don't lead.
-IMPORTANT: Track what's been agreed. Don't loop back to settled issues.`;
+3. RESPONSE RULES:
+   - Give EXACTLY ONE objection per turn (2-3 sentences max)
+   - Be specific and clear about your concern
+   - Don't ask multiple questions - state your objection
+   - Don't offer solutions - that's BA's job
+   - Don't repeat resolved objections
+
+4. FINAL DECISION (Interaction ${limit}):
+   - If BA addressed your objections well: "Alright, let's try it. [specific next step]"
+   - If BA failed to convince: "Sorry, I'm not convinced. Maybe another time."
+   - No middle ground - clear YES or NO
+
+5. DIFFICULTY BEHAVIORS:
+${difficulty === 'easy' ? `   - Be open to reasonable solutions
+   - Accept good answers readily
+   - Don't nitpick details` : ''}
+${difficulty === 'medium' ? `   - Need solid answers to concerns
+   - Push back on vague promises
+   - Require specifics but be fair` : ''}
+${difficulty === 'hard' ? `   - Demand proof and guarantees
+   - Challenge every claim
+   - Need data, not promises` : ''}
+
+IMPORTANT: At interaction ${limit}, you MUST give a final decision.
+NEVER exceed ${limit} interactions. No exceptions.`;
 }
 
 function userToAgent(sc: any, state: TrainerState, lastTurn: string, difficulty: string = 'medium', conversationHistory?: string[]) {
-  // Check if we've already agreed based on objectives
-  function checkIfAgreed(state: TrainerState): boolean {
-    return !!(state.objectives.trialOrder || state.objectives.promoAgreed || 
-           state.objectives.staffTraining || state.objectives.tapMachine);
-  }
-  
-  // Get venue-specific details
-  const venueInfo = {
-    'product_absent': 'Minimalist cocktail bar with digital menu, no chalkboard, subtle table cards for promos',
-    'no_promo': 'Traditional pub, existing promotional materials, comfortable with current setup',
-    'no_perfect_serve': 'Beach club with tap machine present but not used, casual atmosphere'
+  // Determine interaction limits
+  const interactionLimits = {
+    easy: 2,
+    medium: 3,
+    hard: 4
   };
   
-  const venue = venueInfo[state.scenarioId as keyof typeof venueInfo] || '';
+  const limit = interactionLimits[difficulty as keyof typeof interactionLimits] || 3;
+  const currentInteraction = Math.ceil(state.turn / 2); // Each interaction = 2 turns (BA speaks, Agent responds)
+  const isFinalInteraction = currentInteraction >= limit;
   
-  // Determine current conversation state
-  const hasAgreedToSomething = checkIfAgreed(state);
-  const isNearingConclusion = state.turn > 5 && hasAgreedToSomething;
+  // Track what objections have been raised
+  const objectionPool = [sc.primary_objection, ...(sc.secondary_objection_pool || [])];
+  const nextObjectionIndex = state.objectionsRaised.length;
+  const nextObjection = objectionPool[nextObjectionIndex] || objectionPool[0];
   
-  // Build context about what's been discussed and agreed
-  const discussedTopics = conversationHistory?.join(', ') || 'nothing specific yet';
-  const hasAgreedToTrialSize = conversationHistory?.includes('trial_size_agreed');
-  const hasAgreedToPOSM = conversationHistory?.includes('posm_agreed');
-  const hasAgreedToReturn = conversationHistory?.includes('return_policy_agreed');
-  const hasAgreedToFree = conversationHistory?.includes('free_trial_agreed');
-  
-  // Get appropriate response guidance based on difficulty
-  let responseGuidance = '';
-  if (difficulty === 'easy') {
-    responseGuidance = 'Answer their question positively. Show openness to trying their solution.';
-  } else if (difficulty === 'medium') {
-    responseGuidance = 'Answer their question honestly. Express your actual concern but be reasonable.';
-  } else {
-    responseGuidance = 'Answer their question skeptically. Need concrete data and guarantees to be convinced.';
-  }
-
-  // Track what BA has addressed
-  const baAddressedPoints = [];
+  // Track what BA has addressed in this response
   const lastTurnLower = lastTurn.toLowerCase();
+  const addressedWell = [];
   
-  if (lastTurnLower.includes('free') || lastTurnLower.includes('no cost')) {
-    baAddressedPoints.push('cost/pricing concerns');
+  if (lastTurnLower.includes('free') || lastTurnLower.includes('no cost') || lastTurnLower.includes('cover')) {
+    addressedWell.push('cost concerns');
   }
-  if (lastTurnLower.includes('training') || lastTurnLower.includes('session')) {
-    baAddressedPoints.push('staff training');
+  if (lastTurnLower.includes('data') || lastTurnLower.includes('%') || lastTurnLower.includes('increase')) {
+    addressedWell.push('ROI/data');
   }
-  if (lastTurnLower.includes('take back') || lastTurnLower.includes('return')) {
-    baAddressedPoints.push('return policy');
+  if (lastTurnLower.includes('minimal') || lastTurnLower.includes('subtle') || lastTurnLower.includes('custom')) {
+    addressedWell.push('POSM concerns');
   }
-  if (lastTurnLower.includes('no minimum') || lastTurnLower.includes('one bottle')) {
-    baAddressedPoints.push('minimum commitment');
+  if (lastTurnLower.includes('trial') || lastTurnLower.includes('test') || lastTurnLower.includes('one bottle')) {
+    addressedWell.push('commitment concerns');
   }
-  if (lastTurnLower.includes('custom') || lastTurnLower.includes('your team')) {
-    baAddressedPoints.push('customization for venue');
+  if (lastTurnLower.includes('training') || lastTurnLower.includes('show') || lastTurnLower.includes('teach')) {
+    addressedWell.push('staff concerns');
   }
 
-  // Detect if BA is asking a question
-  const isBAAsking = lastTurn.includes('?') || 
-                     lastTurnLower.includes('what') || 
-                     lastTurnLower.includes('how') || 
-                     lastTurnLower.includes('when') ||
-                     lastTurnLower.includes('who') ||
-                     lastTurnLower.includes('which') ||
-                     lastTurnLower.includes('tell me');
+  return `BA just said: "${lastTurn}"
 
-  // Build list of already addressed items
-  const alreadyAddressed = [];
-  if (hasAgreedToTrialSize) alreadyAddressed.push('Trial size (one bottle agreed)');
-  if (hasAgreedToPOSM) alreadyAddressed.push('POSM/materials (minimal/custom agreed)');
-  if (hasAgreedToReturn) alreadyAddressed.push('Return policy (agreed)');
-  if (hasAgreedToFree) alreadyAddressed.push('Pricing (free trial agreed)');
+==[ CURRENT STATUS ]==
+Interaction: ${currentInteraction} of ${limit}
+${isFinalInteraction ? '🔴 FINAL INTERACTION - GIVE YOUR DECISION!' : `Objection to raise: ${nextObjection}`}
 
-  return `The BA (Brand Ambassador) just said: "${lastTurn}"
+==[ EVALUATION OF BA'S RESPONSE ]==
+BA addressed: ${addressedWell.join(', ') || 'nothing specific'}
+Quality: ${addressedWell.length >= 2 ? 'Good response' : addressedWell.length === 1 ? 'Partial response' : 'Weak response'}
 
-Context:
-- Turn ${state.turn} of conversation
-- Venue: ${venue}
-- Topics discussed: ${discussedTopics}
-- BA has addressed: ${baAddressedPoints.join(', ') || 'nothing specific yet'}
-- Previous objections raised: ${state.objectionsRaised.join(', ') || 'none yet'}
-- Agreements so far: ${JSON.stringify(state.objectives)}
-${alreadyAddressed.length > 0 ? `- ✅ ALREADY AGREED TO: ${alreadyAddressed.join(', ')}` : ''}
+==[ YOUR TASK ]==
+${isFinalInteraction ? 
+`FINAL DECISION TIME:
+- If BA gave good answers (addressed 2+ concerns well): "Alright, let's try it. When can you bring the trial bottle?"
+- If BA was weak/vague: "Sorry, I'm not convinced. Not interested right now."
+- Be decisive - clear YES or NO.` :
+`RAISE YOUR OBJECTION:
+- State clearly: "${nextObjection}"
+- Make it specific to your bar situation
+- 2-3 sentences maximum
+- Don't repeat previous objections: ${state.objectionsRaised.join(', ') || 'none yet'}`}
 
-${isBAAsking ? '⚠️ The BA asked you a question - ANSWER IT DIRECTLY!' : ''}
-${hasAgreedToTrialSize && hasAgreedToPOSM ? '⚠️ Main concerns addressed - time to close the deal!' : ''}
-${isNearingConclusion ? 'The BA has addressed your concerns. Time to make a decision.' : ''}
-${state.turn > 8 ? 'IMPORTANT: This conversation has gone on long enough. If main concerns are addressed, agree to the trial.' : ''}
+==[ DIFFICULTY: ${difficulty.toUpperCase()} ]==
+${difficulty === 'easy' ? 'Be reasonable. Accept good solutions readily.' : ''}
+${difficulty === 'medium' ? 'Push for specifics. Need solid answers.' : ''}
+${difficulty === 'hard' ? 'Be tough. Demand proof and guarantees.' : ''}
 
-Response guidance (${difficulty} mode):
-${responseGuidance}
-
-CRITICAL RULES:
-1. Respond with 2-4 sentences MAXIMUM
-2. ${isBAAsking ? 'ONLY ANSWER THE QUESTION - DO NOT OFFER TRIALS OR SOLUTIONS' : 'React to what BA said'}
-3. NEVER repeat concerns about: ${alreadyAddressed.join(', ') || 'nothing yet'}
-4. ${state.turn === 1 ? 'Just answer their question. Don\'t mention Jäger or trials yet.' : ''}
-5. ${alreadyAddressed.length >= 2 ? '✅ 2+ CONCERNS RESOLVED - AGREE TO THE TRIAL NOW!' : 'Wait for BA to make an offer'}
-6. ${state.turn > 6 ? 'Time to close - agree if concerns are addressed' : 'Be conversational'}
-${alreadyAddressed.length >= 2 ? '\n⚠️ IMPORTANT: You have 2+ resolved concerns. Time to say YES!' : ''}`;
+REMEMBER: ${isFinalInteraction ? 'This is your FINAL response. Make a clear decision!' : `You have ${limit - currentInteraction} more interactions after this.`}`;
 }
 
 // Export the main logic as a reusable function
