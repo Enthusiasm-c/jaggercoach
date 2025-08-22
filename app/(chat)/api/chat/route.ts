@@ -1,12 +1,11 @@
 import {
   createUIMessageStream,
   JsonToSseTransformStream,
-  generateText,
 } from 'ai';
 import { type RequestHints } from '@/lib/ai/prompts';
 import { generateUUID } from '@/lib/utils';
-import { TrainerState, createInitialState, appendUnique, updateObjectives, isScenarioComplete } from '@/lib/trainer-state';
-import { getAgentResponse } from '@/lib/agent';
+import { Memory, initialMemory } from '@/lib/memory-system';
+import { agentPipeline } from '@/lib/agent-pipeline';
 import yaml from 'js-yaml';
 import fs from 'fs';
 import path from 'path';
@@ -22,7 +21,7 @@ const scenariosContent = fs.readFileSync(scenariosPath, 'utf8');
 const scenariosData = yaml.load(scenariosContent) as any;
 
 // Store training states per chat
-const trainingStates = new Map<string, TrainerState>();
+const trainingStates = new Map<string, Memory>();
 
 function isGreeting(message: string): boolean {
   const greetings = [
@@ -44,11 +43,10 @@ function getScenario(scenarioId: string) {
 
 export async function POST(request: Request) {
   try {
-    const { id, message, difficulty = 'medium', trainingState: clientState, scenarioType }: { 
+    const { id, message, trainingState: clientState, scenarioType }: {
       id: string; 
       message: ChatMessage; 
-      difficulty?: string;
-      trainingState?: TrainerState;
+      trainingState?: Memory;
       scenarioType?: string;
     } = await request.json();
 
@@ -71,7 +69,7 @@ export async function POST(request: Request) {
         const scenario = scenarioType && scenarioType !== 'random' 
           ? getScenario(scenarioType) 
           : getRandomScenario();
-        trainingState = createInitialState(scenario.id, scenario.must_cover_high5);
+        trainingState = initialMemory(scenario);
         trainingStates.set(id, trainingState);
         isTrainingMode = true;
         
@@ -210,39 +208,12 @@ ${situationDesc}
             throw new Error('Scenario not found');
           }
           
-          // Track conversation topics and what BA has addressed
-          const userLower = userText.toLowerCase();
-          
-          // Track topics discussed
-          if (userLower.includes('audience') || userLower.includes('guests') || userLower.includes('who')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'audience_described');
-          }
-          if (userLower.includes('promo') || userLower.includes('special') || userLower.includes('offer')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'promos_described');
-          }
-          if (userLower.includes('bestseller') || userLower.includes('best seller') || userLower.includes('popular')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'bestsellers_described');
-          }
-          
-          // Track what BA has addressed/agreed to
-          if (userLower.includes('one bottle') || userLower.includes('single bottle') || userLower.includes('just one')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'trial_size_agreed');
-          }
-          if (userLower.includes('no posm') || userLower.includes('no poster') || userLower.includes('low-key') || userLower.includes('no bulky')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'no_posm');
-          }
-          if (userLower.includes('training') || userLower.includes('train your') || userLower.includes('brief')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'training_agreed');
-          }
-          if (userLower.includes('free') || userLower.includes('no cost') || userLower.includes('covered')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'free_trial');
-          }
-          if (userLower.includes('yes') || userLower.includes('sure') || userLower.includes('of course')) {
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'ba_confirmed');
-          }
+          // The new memory system handles state tracking automatically.
+          // This includes conversation topics, objections, and commitments.
+          // All the manual tracking logic below is now removed.
 
-          // Check if conversation already ended (agent already agreed)
-          if (trainingState.done) {
+          // Check if the conversation is already concluded
+          if (trainingState.fsm.state === 'CONCLUDED') {
             console.log('Conversation already complete, ending.');
             
             // Send completion message
@@ -265,64 +236,29 @@ ${situationDesc}
           });
           const agentStart = Date.now();
           
-          // Call agent function directly instead of via HTTP
-          const agentData = await getAgentResponse(
-            trainingState.scenarioId,
+          // Call agent pipeline
+          const agentResult = await agentPipeline(
             trainingState,
             userText,
-            difficulty,
-            trainingState.conversationTopics || []
           );
+
+          // Update the memory state for the next turn
+          trainingState = agentResult.newMemory;
+          trainingStates.set(id, trainingState);
+
+          // Create a temporary object for compatibility with the old code that expects agentData.reply
+          const agentData = { reply: agentResult.reply, suggestedObjectionId: null };
           
           const agentTime = Date.now() - agentStart;
           console.log(`Agent response time: ${agentTime}ms`);
           
-          // Simple progress tracking without judge delay
-          // Check for agreement in agent's response
-          const agentReplyLower = agentData.reply.toLowerCase();
-          const agentAgreed = agentReplyLower.includes("let's do it") || 
-                             agentReplyLower.includes("let's try") ||
-                             agentReplyLower.includes("i'm convinced") ||
-                             agentReplyLower.includes("we have a deal") ||
-                             agentReplyLower.includes("sounds good") ||
-                             agentReplyLower.includes("i'm on board") ||
-                             agentReplyLower.includes("when can");
+          // All state management, including objectives, objections, and completion status,
+          // is now handled by the agent pipeline and the memory patch system.
+          // The manual tracking logic has been removed.
           
-          if (agentAgreed) {
-            // Mark objectives as complete based on scenario
-            if (trainingState.scenarioId === 'product_absent') {
-              trainingState.objectives.trialOrder = true;
-            } else if (trainingState.scenarioId === 'no_promo') {
-              trainingState.objectives.promoAgreed = true;
-            } else if (trainingState.scenarioId === 'no_perfect_serve') {
-              trainingState.objectives.tapMachine = true;
-            }
-            // Mark conversation as done immediately
-            trainingState.done = true;
-            // Add to conversation history that agent agreed
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'agent_agreed');
-            trainingState.conversationTopics = appendUnique(trainingState.conversationTopics || [], 'deal_closed');
-          }
-          if (agentReplyLower.includes("training") || agentReplyLower.includes("show them")) {
-            trainingState.objectives.staffTraining = true;
-          }
-          
-          // Store the latest exchange for hint generation
-          trainingState.lastExchange = {
-            baMessage: userText,
-            ownerResponse: agentData.reply
-          };
-          
-          // Update objections if new one was raised
-          if (agentData.suggestedObjectionId && !trainingState.objectionsRaised.includes(agentData.suggestedObjectionId)) {
-            trainingState.objectionsRaised = appendUnique(trainingState.objectionsRaised, agentData.suggestedObjectionId);
-          }
-          
-          // Check if scenario is complete
-          trainingState.done = isScenarioComplete(trainingState);
-          trainingState.turn += 1;
-          
-          // Store updated conversation topics and state
+          // The turn counter is now part of the memory object's history.
+          // The Actor component is responsible for proposing an update to it.
+          // We just need to make sure the new memory is stored.
           trainingStates.set(id, trainingState);
           
           // Send training state update
@@ -344,47 +280,12 @@ ${situationDesc}
             }),
           });
           
-          // Check if agreement was reached (but not if still has concerns)
-          const agreementPhrases = [
-            'deal!', 'let\'s do it', 'let\'s try it', 'i\'m willing to try',
-            'we\'ll try it', 'when can you start', 'when can we start',
-            'i\'m convinced', 'you\'ve convinced me', 'let\'s give it a shot',
-            'let\'s do the trial', 'perfect, let\'s', 'sounds good, let\'s',
-            'alright, let\'s do', 'okay, we\'ll try', 'perfect — tomorrow',
-            'perfect — let\'s do it', 'alright — i\'m in', 'perfect! tomorrow',
-            'see you then', 'we\'ll see you', 'tomorrow at', 'tomorrow works',
-            'i\'m in', 'let\'s run a trial', 'we\'re in for', 'great — thanks',
-            'confirmed', 'book it', 'schedule the setup'
-          ];
-          
-          const concernPhrases = [
-            'but', 'however', 'one more', 'concern', 'worry', 'worried',
-            'problem', 'issue', 'how will', 'what about', 'i need to know'
-          ];
-          
-          const replyLower = agentData.reply.toLowerCase();
-          const hasAgreement = agreementPhrases.some(phrase => 
-            replyLower.includes(phrase)
-          );
-          const hasConcerns = concernPhrases.some(phrase => 
-            replyLower.includes(phrase)
-          );
-          
-          // Check if BA is confirming after agreement
-          const baConfirmationWords = ['done', 'confirmed', 'great', 'perfect', 'thanks', 'see you'];
-          const isBAConfirming = userText.toLowerCase().split(' ').length <= 3 && 
-                                  baConfirmationWords.some(word => userText.toLowerCase().includes(word));
-          
-          // Only end if there's clear agreement WITHOUT remaining concerns OR BA confirms after agreement
-          const isFullAgreement = (hasAgreement && !hasConcerns) || 
-                                  (isBAConfirming && trainingState.objectives.tapMachine);
-          
-          if (trainingState.done || isFullAgreement) {
+          // Check if the FSM has reached the concluded state
+          if (trainingState.fsm.state === 'CONCLUDED') {
             // Mark as complete
-            trainingState.done = true;
             trainingStates.set(id, trainingState);
             
-            // Generate final evaluation summary
+            // Generate final evaluation summary from the new memory state
             const finalSummary = `
 ⸻
 
@@ -394,19 +295,14 @@ ${situationDesc}
 **Result:** ✅ Successfully closed the deal!
 
 **Performance Summary:**
-• Turns taken: ${trainingState.turn}
-• Objections handled: ${trainingState.objectionsRaised.length}
-${trainingState.coveredHigh5.length > 0 ? `• High5 elements covered: ${trainingState.coveredHigh5.join(', ')}` : ''}
+• Turns taken: ${trainingState.history.turn}
+• Objections handled: ${trainingState.objections.raised.length}
+${trainingState.high5.covered.length > 0 ? `• High5 elements covered: ${trainingState.high5.covered.join(', ')}` : ''}
 
-**Objectives Achieved:**
-${trainingState.objectives.trialOrder ? '✓ Trial order secured' : ''}
-${trainingState.objectives.promoAgreed ? '✓ Promotion agreed' : ''}
-${trainingState.objectives.staffTraining ? '✓ Staff training scheduled' : ''}
-${trainingState.objectives.tapMachine ? '✓ Tap machine/freezer agreed' : ''}
-
-${trainingState.coveredHigh5.length < scenario.must_cover_high5.length ? 
-`**Remember next time:** Cover all High5 elements - ${scenario.must_cover_high5.filter((h5: string) => !trainingState.coveredHigh5.includes(h5)).join(', ')}` : 
-'**Great job covering all required High5 elements!**'}
+**Commitments Made:**
+${trainingState.commitments.trial ? '✓ Trial order secured' : ''}
+${trainingState.commitments.posm_accepted ? '✓ POSM material agreed' : ''}
+${trainingState.commitments.training ? '✓ Staff training scheduled' : ''}
 
 Type "Hello" to try another scenario!
 `;
