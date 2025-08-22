@@ -90,8 +90,8 @@ importers:
         specifier: ^0.10.0
         version: 0.10.0
       ai:
-        specifier: 5.0.0-beta.6
-        version: 5.0.0-beta.6(zod@3.25.68)
+        specifier: 5.0.0-beta.13
+        version: 5.0.0-beta.13(zod@3.25.68)
       bcrypt-ts:
         specifier: ^5.0.2
         version: 5.0.3
@@ -287,6 +287,12 @@ packages:
 
   '@ai-sdk/gateway@1.0.0-beta.3':
     resolution: {integrity: sha512-g49gMSkXy94lYvl5LRh438OR/0JCG6ol0jV+iLot7cy5HLltZlGocEuauETBu4b10mDXOd7XIjTEZoQpYFMYLQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.49
+
+  '@ai-sdk/gateway@1.0.0-beta.4':
+    resolution: {integrity: sha512-P5/dS7pb+cBRWnTP0Aezq3/3PIrF+p64fUTxBAyZIert8qTyHm2gd6atbAJZprZ304Ui3QjA9MFybAa849//2w==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.49
@@ -1772,6 +1778,12 @@ packages:
     resolution: {integrity: sha512-OvQ/2pUDKmgfCg++xsTX1wGxfTaszcHVcTctW4UJB4hibJx2HXxxO5UmVgyjMa+ZDsiaf5wWLXYpRWMmBI0QHg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  ai@5.0.0-beta.13:
+    resolution: {integrity: sha512-XFHV1otAjt8eey3Uin04ciOWQ9iyf/UYohMv7o3o1y4cfb0CsxDgP16lllXzIcawLCZ7b4HnDSORXJ1usZ5/Eg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.49
 
   ai@5.0.0-beta.6:
     resolution: {integrity: sha512-0VqcqbWiF2XwWBgNfrEr05QrB0bJqctwLyuk7xfy7g8OBSqyJ4OV95HGTzrBvN8/iU/4u+eNTlF5nAG5Qx3utw==}
@@ -3988,6 +4000,12 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.0-beta.2(zod@3.25.68)
       zod: 3.25.68
 
+  '@ai-sdk/gateway@1.0.0-beta.4(zod@3.25.68)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0-beta.1
+      '@ai-sdk/provider-utils': 3.0.0-beta.2(zod@3.25.68)
+      zod: 3.25.68
+
   '@ai-sdk/openai-compatible@1.0.0-beta.2(zod@3.25.68)':
     dependencies:
       '@ai-sdk/provider': 2.0.0-beta.1
@@ -5198,6 +5216,14 @@ snapshots:
       acorn: 8.14.1
 
   acorn@8.14.1: {}
+
+  ai@5.0.0-beta.13(zod@3.25.68):
+    dependencies:
+      '@ai-sdk/gateway': 1.0.0-beta.4(zod@3.25.68)
+      '@ai-sdk/provider': 2.0.0-beta.1
+      '@ai-sdk/provider-utils': 3.0.0-beta.2(zod@3.25.68)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.68
 
   ai@5.0.0-beta.6(zod@3.25.68):
     dependencies:
