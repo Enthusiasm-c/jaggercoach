@@ -230,7 +230,7 @@ ${situationDesc}
           
           // Get agent response ONLY - no judge for speed
           console.log('Calling agent with state:', { 
-            scenarioId: trainingState.facts.bar_name, // This is not ideal, but scenarioId is not in memory
+            scenarioId: trainingState.scenarioId,
             turn: trainingState.history.turn,
             userText 
           });

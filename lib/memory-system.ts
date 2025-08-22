@@ -1,5 +1,6 @@
 // Structured Memory System for Conversation State
 export interface Memory {
+  scenarioId: string;
   persona: {
     role: string;
     tone: string;
@@ -50,6 +51,7 @@ export type MemoryPatch = Partial<{
 
 // Initial memory state for a new conversation
 export const initialMemory = (scenario: any): Memory => ({
+  scenarioId: scenario.id,
   persona: {
     role: scenario.persona,
     tone: 'calm-skeptical',
